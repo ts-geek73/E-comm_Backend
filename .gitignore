@@ -1,0 +1,47 @@
+# Node.js/Express.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+/.env
+/.env.local
+/.env.development
+/.env.production
+/.env.test
+
+# logs
+logs
+*.log
+logs/*
+
+# MongoDB
+db/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Build directories
+dist/
+build/
+public/
+
+# Other temporary files
+*.tgz
+*.swp
+*.bak
+*.tmp
+
+# Coverage directory for testing
+coverage/
+
+# Optional: Ignore Docker files if using Docker
+docker-compose.override.yml
+Dockerfile
