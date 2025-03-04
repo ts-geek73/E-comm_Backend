@@ -13,6 +13,7 @@ interface UserData {
   username: string;
   email: string;
   provider: string;
+  password ?:string;
   googleAuthToken?: string;
   githubAuthToken?: string;
 }
@@ -57,7 +58,7 @@ const UserController = {
       console.log("Body", userData);
       
 
-      const { jwtToken, email, provider, username, clerkId, userId } = userData;
+      const { jwtToken, email, provider, username, clerkId, userId , password } = userData;
 
       if (!jwtToken || !clerkId || !userId || !username || !email || !provider) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -65,25 +66,41 @@ const UserController = {
       
       console.log("Pass1");
       
-      const emailExist = await User.findOne({ email });
-      if (emailExist) {
-        console.log("if in email");
+      // const emailExist = await User.findOne({ email });
+      // if (emailExist) {
+      //   console.log("if in email");
         
-        return res.status(409).json({ message: 'Email already exists' });
-      }
+      //   return res.status(409).json({ message: 'Email already exists' });
+      // }
       
-      // console.log("Pass1");
-      const idExist = await User.findOne({ userId });
-      if (idExist) {
-        console.log("if in id exist");
-        return res.status(409).json({ message: 'User ID already exists' });
+      console.log("Pass1");
+      const userExist = await User.findOne({ userId });
+      // if (idExist) {
+      //   console.log("if in id exist");
+      //   return res.status(409).json({ message: 'User ID already exists' });
+      // }
+
+      // await User.updateOne({userExist , userData})
+      await User.findOneAndUpdate(
+        { userId: userId },
+        userData,
+        { upsert: true, new: true }
+      );
+
+      console.log("Pass1");
+
+
+      if (provider === 'normal' && password) {
+        console.log(" Password== ", password);
+        
       }
-      // console.log("Pass1");
+      console.log("Password after ");
+      // const newUser = new User(userData);
 
-      const newUser = new User(userData);
-      await newUser.save();
+      // await newUser.save();
 
-      console.log("New User Create SuccessFully");
+
+      console.log("User Update SuccessFully");
       
       return res.status(201).json({ message: 'User data stored successfully' });
     } catch (error: any) {
@@ -94,8 +111,12 @@ const UserController = {
 
   protected: async (req: Request, res: Response): Promise<Response> => {
     try {
+      console.log("Protected APi ");
+      
       const authHeader = req.headers.authorization;
       if (!authHeader) {
+        console.log("No Auth");
+        
         return res.status(401).json({ message: 'No token provided' });
       }
 
@@ -116,12 +137,17 @@ const UserController = {
 
         const user = await User.findOne({ userId: decodedPayload.sub });
         if (!user) {
+          console.log("User Found !!");
+          
           return res.status(404).json({ message: 'User not found' });
         }
 
         if (user.roles && user.roles.includes('Admin')) {
+          console.log("Admin");
+          
           return res.status(200).json({ message: 'User authenticated' });
         } else {
+          console.log("not a Admin");
           return res.status(401).json({ message: 'User does not have admin access' });
         }
       } catch (jwtError) {

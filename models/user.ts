@@ -9,6 +9,7 @@ export interface IUser extends Document {
   username: string;
   email: string;
   provider: string;
+  password ?: string
   roles?: string[];
   permissions?: string[];
   customClaim?: string;
@@ -23,6 +24,7 @@ const userSchema = new Schema<IUser>({
   userId: { type: String, required: true },
   username: { type: String, required: true },
   email: { type: String, required: true },
+  password: { type: String },
   roles: [{ type: String }],
   permissions: [{ type: String }],
   customClaim: { type: String },
