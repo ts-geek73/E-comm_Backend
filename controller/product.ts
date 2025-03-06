@@ -1,113 +1,226 @@
 import { Request, Response } from 'express';
 import Product from '../models/product';
+import Brand from '../models/brand';
+import ImageURL from '../models/Image';
 
 const productController = {
-
   createProduct: async (req: Request, res: Response): Promise<Response> => {
     try {
-      console.log("Backend Product create");
-        const body = req.body;
-        
-        const { name, description, price, category, imageUrl, stock } = req.body;
+      console.log('Backend Product create');
+      let { name, description, price, brand, rating, features, category_id, parentCategory_id, imageUrl, stock } = req.body;
+      console.log("Back Body : ", req.body);
 
-        if(!name || !description || !price|| !category|| !imageUrl || !stock){
-            return res.status(401).send("Missing the required Things");
-        }
+      if (!name || !description || !price || !brand || !category_id || !parentCategory_id || !imageUrl || !stock) {
+        return res.status(400).json({ message: 'Missing required fields.' });
+      }
 
-        if (typeof name !== 'string' || typeof description !== 'string' || typeof category !== 'string' || (imageUrl && typeof imageUrl !== 'string')) {
-          return res.status(400).json({ message: 'Invalid data types.' });
-        }
-  
-        if ( price < 0) {
-          return res.status(400).json({ message: 'Invalid price.' });
-        }
-  
-        if ( stock < 0) {
-          return res.status(400).json({ message: 'Invalid stock.' });
-        }
 
-        const newProduct = await Product.insertOne(req.body)
+      price = parseFloat(price);
+      rating = parseFloat(rating);
+      stock = parseInt(stock);
 
-      return res.status(200).json({ message: 'Product data stored successfully' });
+      if (price < 0 || stock < 0 || rating < 0 || rating > 5) {
+        return res.status(400).json({ message: 'Invalid numeric values.' });
+      }
+
+      const productExist = await Product.findOne({ name });
+      if (productExist) {
+        productExist.set({
+          name,
+          description,
+          price,
+          brand,
+          rating,
+          features,
+          category_id,
+          parentCategory_id,
+          imageUrl,
+          stock,
+        });
+
+        await productExist.save();
+
+        return res.status(200).json({ message: 'Product Update successfully.' });
+      }
+
+      // if (typeof name !== 'string' || typeof description !== 'string' || typeof brand !== 'string' || typeof imageUrl !== 'string' || !Array.isArray(features)) {
+      //   return res.status(400).json({ message: 'Invalid data types.' });
+      // }
+
+
+      const newProduct = new Product({
+        name,
+        description,
+        price,
+        brand,
+        rating,
+        features,
+        category_id,
+        parentCategory_id,
+        imageUrl,
+        stock,
+      });
+
+      await newProduct.save();
+
+      return res.status(200).json({ message: 'Product created successfully.' });
     } catch (error: any) {
-      console.error('Error storing user data:', error);
+      console.error('Error creating product:', error);
       return res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   },
-  getAllProduct : async(req:Request, res:Response): Promise<Response> =>{
-    try {
 
-      const allProduct = await Product.find().sort()
-      
-      return res.status(200).json(allProduct)
+  getAllProduct: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const allProducts = await Product.find();
+
+      if (allProducts.length === 0) {
+        return res.status(404).json({ message: 'No products found.' });
+      }
+
+      return res.status(200).json(allProducts);
     } catch (error) {
-      
-      return res.status(500).send("Server Error")
+      console.error('Error fetching all products:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   },
-  getLimitedProducts : async(req:Request , res:Response):Promise<Response> =>{
+
+  getLimitedProducts: async (req: Request, res: Response): Promise<Response> => {
     try {
       const { start, length } = req.query;
 
-      const startNum = parseInt(start as string, 10);
-      const lengthNum = parseInt(length as string, 10);
+      const startNum = parseInt(start as string, 10) || 0;
+      const lengthNum = parseInt(length as string, 10) || 10;
 
-      if (isNaN(startNum) || isNaN(lengthNum)) {
-        return res.status(400).send("Invalid query parameters");
-      }
+      const limitedProducts = await Product.find().limit(lengthNum).skip(startNum).sort({ createdAt: -1 });
+      const totalLength = await Product.countDocuments();
 
-      const limitedProducts = await Product.find().limit(lengthNum).skip(startNum)
-      const lengthData = (await Product.find()).length
-      return res.status(200).json({datas : limitedProducts , length:lengthData  })
+      return res.status(200).json({ datas: limitedProducts, length: totalLength });
     } catch (error) {
-      return res.status(500).send("Internal Server Error")
+      console.error('Error fetching limited products:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   },
-  serachProduct: async(req:Request , res: Response):Promise<Response>=>{
+
+  serachProduct: async (req: Request, res: Response): Promise<Response> => {
     try {
       const { search } = req.query;
-      if(!search){
-        return res.status(400).send("Search Quaey Not Get")
+
+      if (!search) {
+        return res.status(400).json({ message: 'Search query is required.' });
       }
 
-      const product = await Product.find({
-        name: { $regex: search, $options: 'i' }
+      const products = await Product.find({
+        name: { $regex: search as string, $options: 'i' },
       });
-      console.log("Product:= ",product);
-      
 
-      if(product.length === 0){
-        console.log("Product not Found");
-        
-        const relatedProduct = await Product.find().limit(10)
-        return res.status(201).json({msg:"Product Not Found",data:[], related : relatedProduct})
+      if (products.length === 0) {
+        const relatedProducts = await Product.find().limit(10)
+        console.log("Related := ", relatedProducts.length)
+        return res.status(404).json({ message: 'Product not found.', data: [], related: relatedProducts });
+      }
+      console.log("Product Length: =", products.length);
+      
+      let relatedProducts: any[] = [];
+      // console.log(products);
+
+      if (products.length > 0 && products[0].category_id) {
+        console.log("Category ID from product:", products[0].category_id);
+        console.log("Search Term:", search);
+
+        relatedProducts = await Product.find({
+          name: { $not: { $regex: search, $options: 'i' } },          
+        }).limit(10);
+
+        console.log("Related := ", relatedProducts.length)
+      } else {
+        console.log('Category ID not found, or no products found');
       }
 
-      const relatedProduct = await Product.find({category:product[0].category , name: { $not: { $regex: search, $options: 'i' } }}).limit(10)
-      // console.log("Related:= ", relatedProduct);
-      
-      return res.status(200).json({data: product , related : relatedProduct})
+      return res.status(200).json({ data: products, related: relatedProducts });
     } catch (error) {
-      
-      return res.status(500).send("Internal Serval Error")
+      console.error('Error searching products:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   },
-  updateProduct: async(req:Request , res: Response) : Promise<Response>=>{
+
+  updateProduct: async (req: Request, res: Response): Promise<Response> => {
     try {
-      return res.status(200).send("uiu")
+      const products = await Product.find(); // Use Product.find()
+
+      const updatePromises = products.map(async (product) => {
+        console.log('Brand (before):', product.brand);
+        console.log('Product:', product);
+        let brandName = product.brand;
+        console.log('Brand (after):', brandName);
+  
+        if (!brandName) {
+          console.log('Brand name is empty, skipping product:', product.name);
+          return;
+        }
+  
+        console.log('Searching for brand:', brandName);
+        let brand = await Brand.findOne({ name: brandName });
+  
+        if (!brand) {
+          brand = await Brand.findOne({
+            name: { $regex: new RegExp(`^${brandName}$`, 'i') }, // Correct regex
+          });
+          if (!brand) {
+            brand = new Brand({
+              name: brandName,
+              logo: 'https://plus.unsplash.com/premium_photo-1669077047180-9628d4e1efc6',
+              count: 1,
+            });
+            await brand.save();
+          }
+        } else {
+          brand.count += 1;
+          await brand.save();
+        }
+  
+        let imageUrl = await ImageURL.findOne({ url: product.imageUrl });
+  
+        if (!imageUrl) {
+          imageUrl = new ImageURL({
+            name: product.name,
+            url: product.imageUrl,
+          });
+          await imageUrl.save();
+        }
+  
+        product.brand_id = brand._id;
+        product.imageUrl = imageUrl._id;
+        await product.save();
+  
+        console.log(`Product updated: ${product.name}`);
+      });
+  
+      await Promise.all(updatePromises);
+      console.log('Products update completed.');
+      console.log('Database update completed.');
+      return res.status(200).json({ message: 'Product updated successfully.' });
     } catch (error) {
-      return res.status(200).send("viudbd")
-      
+      console.error('Error updating product:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   },
-  deleteProduct: async(req:Request , res: Response) : Promise<Response>=>{
+
+  deleteProduct: async (req: Request, res: Response): Promise<Response> => {
     try {
-      return res.status(200).send("uiu")
+      const { id } = req.params;
+      const deletedProduct = await Product.findByIdAndDelete(id);
+
+      if (!deletedProduct) {
+        return res.status(404).json({ message: 'Product not found.' });
+      }
+
+      return res.status(200).json({ message: 'Product deleted successfully.' });
     } catch (error) {
-      return res.status(200).send("viudbd")
-      
+      console.error('Error deleting product:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
-  }
+  },
 };
 
 export default productController;

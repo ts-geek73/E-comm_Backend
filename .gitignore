@@ -18,6 +18,11 @@ logs/*
 # MongoDB
 db/
 
+brand.json
+fake.json
+image.json
+fake copy.json
+
 # IDEs and Editors
 .vscode/
 .idea/
