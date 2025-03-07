@@ -7,13 +7,12 @@ const productController = {
   createProduct: async (req: Request, res: Response): Promise<Response> => {
     try {
       console.log('Backend Product create');
-      let { name, description, price, brand, rating, features, category_id, parentCategory_id, imageUrl, stock } = req.body;
+      let { name, description, price, brand, rating, features, category_id, imageUrl, stock } = req.body;
       console.log("Back Body : ", req.body);
 
-      if (!name || !description || !price || !brand || !category_id || !parentCategory_id || !imageUrl || !stock) {
+      if (!name || !description || !price || !brand || !category_id || !imageUrl || !stock) {
         return res.status(400).json({ message: 'Missing required fields.' });
       }
-
 
       price = parseFloat(price);
       rating = parseFloat(rating);
@@ -23,41 +22,52 @@ const productController = {
         return res.status(400).json({ message: 'Invalid numeric values.' });
       }
 
+      let brandExists = await Brand.findOne({ name: brand });
+      if (!brandExists) {
+        brandExists = new Brand({ name: brand, count: 1 });
+        await brandExists.save();
+      } else {
+
+        brandExists.count = (brandExists.count || 0) + 1;
+        await brandExists.save();
+      }
+
+
+      let imageExists = await ImageURL.findOne({ url: imageUrl });
+      if (!imageExists) {
+        imageExists = new imageUrl({ name: `Image for ${name}`, url: imageUrl });
+        await imageExists.save();
+      }
+
       const productExist = await Product.findOne({ name });
       if (productExist) {
         productExist.set({
           name,
           description,
           price,
-          brand,
           rating,
           features,
           category_id,
-          parentCategory_id,
-          imageUrl,
+          imageUrl: imageExists._id,
+          brand: brandExists._id,
           stock,
         });
+
 
         await productExist.save();
 
         return res.status(200).json({ message: 'Product Update successfully.' });
       }
 
-      // if (typeof name !== 'string' || typeof description !== 'string' || typeof brand !== 'string' || typeof imageUrl !== 'string' || !Array.isArray(features)) {
-      //   return res.status(400).json({ message: 'Invalid data types.' });
-      // }
-
-
       const newProduct = new Product({
         name,
         description,
         price,
-        brand,
+        imageUrl: imageExists._id,
+        brand: brandExists._id,
         rating,
         features,
         category_id,
-        parentCategory_id,
-        imageUrl,
         stock,
       });
 
@@ -72,11 +82,13 @@ const productController = {
 
   getAllProduct: async (req: Request, res: Response): Promise<Response> => {
     try {
-      const allProducts = await Product.find();
+      const allProducts = await Product.findOne()
+      .populate('brand_id', 'name')
+      .populate('imageUrl', 'url');
 
-      if (allProducts.length === 0) {
-        return res.status(404).json({ message: 'No products found.' });
-      }
+      // if (allProducts.length === 0) {
+      //   return res.status(404).json({ message: 'No products found.' });
+      // }
 
       return res.status(200).json(allProducts);
     } catch (error) {
@@ -92,7 +104,10 @@ const productController = {
       const startNum = parseInt(start as string, 10) || 0;
       const lengthNum = parseInt(length as string, 10) || 10;
 
-      const limitedProducts = await Product.find().limit(lengthNum).skip(startNum).sort({ createdAt: -1 });
+      const limitedProducts = await Product.find().limit(lengthNum)
+        .skip(startNum)
+        .populate('brand_id', 'name')
+        .populate('imageUrl', 'url');
       const totalLength = await Product.countDocuments();
 
       return res.status(200).json({ datas: limitedProducts, length: totalLength });
@@ -112,15 +127,17 @@ const productController = {
 
       const products = await Product.find({
         name: { $regex: search as string, $options: 'i' },
-      });
+      }).populate('brand_id', 'name')
+      .populate('imageUrl', 'url');;
 
       if (products.length === 0) {
-        const relatedProducts = await Product.find().limit(10)
+        const relatedProducts = await Product.find().limit(10).populate('brand_id', 'name')
+        .populate('imageUrl', 'url');;
         console.log("Related := ", relatedProducts.length)
         return res.status(404).json({ message: 'Product not found.', data: [], related: relatedProducts });
       }
       console.log("Product Length: =", products.length);
-      
+
       let relatedProducts: any[] = [];
       // console.log(products);
 
@@ -129,8 +146,9 @@ const productController = {
         console.log("Search Term:", search);
 
         relatedProducts = await Product.find({
-          name: { $not: { $regex: search, $options: 'i' } },          
-        }).limit(10);
+          name: { $not: { $regex: search, $options: 'i' } },
+        }).limit(10).populate('brand_id', 'name')
+        .populate('imageUrl', 'url');;
 
         console.log("Related := ", relatedProducts.length)
       } else {
@@ -148,57 +166,7 @@ const productController = {
     try {
       const products = await Product.find(); // Use Product.find()
 
-      const updatePromises = products.map(async (product) => {
-        console.log('Brand (before):', product.brand);
-        console.log('Product:', product);
-        let brandName = product.brand;
-        console.log('Brand (after):', brandName);
-  
-        if (!brandName) {
-          console.log('Brand name is empty, skipping product:', product.name);
-          return;
-        }
-  
-        console.log('Searching for brand:', brandName);
-        let brand = await Brand.findOne({ name: brandName });
-  
-        if (!brand) {
-          brand = await Brand.findOne({
-            name: { $regex: new RegExp(`^${brandName}$`, 'i') }, // Correct regex
-          });
-          if (!brand) {
-            brand = new Brand({
-              name: brandName,
-              logo: 'https://plus.unsplash.com/premium_photo-1669077047180-9628d4e1efc6',
-              count: 1,
-            });
-            await brand.save();
-          }
-        } else {
-          brand.count += 1;
-          await brand.save();
-        }
-  
-        let imageUrl = await ImageURL.findOne({ url: product.imageUrl });
-  
-        if (!imageUrl) {
-          imageUrl = new ImageURL({
-            name: product.name,
-            url: product.imageUrl,
-          });
-          await imageUrl.save();
-        }
-  
-        product.brand_id = brand._id;
-        product.imageUrl = imageUrl._id;
-        await product.save();
-  
-        console.log(`Product updated: ${product.name}`);
-      });
-  
-      await Promise.all(updatePromises);
-      console.log('Products update completed.');
-      console.log('Database update completed.');
+
       return res.status(200).json({ message: 'Product updated successfully.' });
     } catch (error) {
       console.error('Error updating product:', error);
