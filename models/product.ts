@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Types ,Schema, Document } from 'mongoose';
 
 export interface IProduct extends Document {
   name: string;
@@ -6,9 +6,9 @@ export interface IProduct extends Document {
   price: number;
   rating: number;
   features: string[];
-  brand_id: mongoose.Types.ObjectId; 
-  category_id: mongoose.Types.ObjectId;
-  imageUrl: mongoose.Types.ObjectId;
+  brand: Types.ObjectId; 
+  category_id: Types.ObjectId;
+  imageUrl: Types.ObjectId;
   stock: number;
 }
 
@@ -25,8 +25,8 @@ const productSchema = new Schema<IProduct>({
     type: Number,
     required: true,
   },
-  brand_id: { 
-    type: mongoose.Schema.Types.ObjectId,
+  brand: { 
+    type: Schema.Types.ObjectId,
     ref: 'Brand', 
     required: true,
   },
@@ -41,13 +41,13 @@ const productSchema = new Schema<IProduct>({
     default: [],
   },
   category_id: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'Category',
     required: true,
   },
   imageUrl: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Images', 
+    type: Schema.Types.ObjectId,
+    ref: 'ImageURL', 
     required: true,
   },
   stock: {
@@ -56,6 +56,6 @@ const productSchema = new Schema<IProduct>({
   },
 });
 
-const Product = mongoose.models.Product || mongoose.model<IProduct>('Product', productSchema);
+const Product = mongoose.model<IProduct>('Product', productSchema);
 
 export default Product;
