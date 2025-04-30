@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 interface ICategory extends Document {
   name: string;
   parentCategory_id: mongoose.Types.ObjectId | null;
+  imageUrl: mongoose.Types.ObjectId; 
 }
 
 const categorySchema: Schema = new Schema(
@@ -16,6 +17,11 @@ const categorySchema: Schema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
       default: null,
+    },
+    imageUrl: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Image',
+      required: true,
     },
   }
 );

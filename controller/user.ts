@@ -10,7 +10,7 @@ interface UserData {
   jwtToken: string;
   clerkId: string;
   userId: string;
-  username: string;
+  name: string;
   email: string;
   provider: string;
   password ?:string;
@@ -58,9 +58,9 @@ const UserController = {
       console.log("Body", userData);
       
 
-      const { jwtToken, email, provider, username, clerkId, userId , password } = userData;
+      const {  email, provider, name, clerkId, userId , password } = userData;
 
-      if (!jwtToken || !clerkId || !userId || !username || !email || !provider) {
+      if (!clerkId || !userId || !name || !email || !provider) {
         return res.status(400).json({ message: 'Missing required fields' });
       }
       
@@ -73,8 +73,8 @@ const UserController = {
       //   return res.status(409).json({ message: 'Email already exists' });
       // }
       
-      console.log("Pass1");
       const userExist = await User.findOne({ userId });
+      console.log("Pass1");
       // if (idExist) {
       //   console.log("if in id exist");
       //   return res.status(409).json({ message: 'User ID already exists' });
@@ -113,47 +113,48 @@ const UserController = {
     try {
       console.log("Protected APi ");
       
-      const authHeader = req.headers.authorization;
-      if (!authHeader) {
-        console.log("No Auth");
+      // const authHeader = req.headers.authorization;
+      // if (!authHeader) {
+      //   console.log("No Auth");
         
-        return res.status(401).json({ message: 'No token provided' });
-      }
+      //   return res.status(401).json({ message: 'No token provided' });
+      // }
 
-      const token = authHeader.split(" ")[1];
+      // const token = authHeader.split(" ")[1];
 
-      try {
-        const decoded = jwt.decode(token, { complete: true });
-        if (!decoded || !decoded.header) {
-          return res.status(401).json({ message: 'Invalid token structure' });
-        }
+      // try {
+      //   const decoded = jwt.decode(token, { complete: true });
+      //   if (!decoded || !decoded.header) {
+      //     return res.status(401).json({ message: 'Invalid token structure' });
+      //   }
 
-        const publicKey = await getLocalKey(decoded.header);
-        if (!publicKey) {
-          return res.status(401).json({ message: 'Invalid token signature' });
-        }
+      //   const publicKey = await getLocalKey(decoded.header);
+      //   if (!publicKey) {
+      //     return res.status(401).json({ message: 'Invalid token signature' });
+      //   }
 
-        const decodedPayload = jwt.verify(token, publicKey, { issuer: JWT_ISSUER }) as JwtPayload;
+      //   const decodedPayload = jwt.verify(token, publicKey, { issuer: JWT_ISSUER }) as JwtPayload;
 
-        const user = await User.findOne({ userId: decodedPayload.sub });
-        if (!user) {
-          console.log("User Found !!");
+      //   const user = await User.findOne({ userId: decodedPayload.sub });
+      //   if (!user) {
+      //     console.log("User Found !!");
           
-          return res.status(404).json({ message: 'User not found' });
-        }
+      //     return res.status(404).json({ message: 'User not found' });
+      //   }
 
-        if (user.roles && user.roles.includes('Admin')) {
-          console.log("Admin");
+        // if (user.roles && user.roles.includes('Admin')) {
+        //   console.log("Admin");
           
-          return res.status(200).json({ message: 'User authenticated' });
-        } else {
-          console.log("not a Admin");
-          return res.status(401).json({ message: 'User does not have admin access' });
-        }
-      } catch (jwtError) {
-        console.error('JWT verification error:', jwtError);
-        return res.status(401).json({ message: 'Invalid token' });
-      }
+        //   return res.status(200).json({ message: 'User authenticated' });
+        // } else {
+          //   console.log("not a Admin");
+          //   return res.status(401).json({ message: 'User does not have admin access' });
+          // }
+            return res.status(200).json({ message: 'User authenticated' });
+      // } catch (jwtError) {
+      //   console.error('JWT verification error:', jwtError);
+      //   return res.status(401).json({ message: 'Invalid token' });
+      // }
     } catch (error) {
       console.error('Server error:', error);
       return res.status(500).send('Internal Server Error');
