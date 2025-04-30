@@ -2,8 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 interface Brand extends Document {
   name: string;
-  logo: string;
-  count: number;
+  logo: mongoose.Types.ObjectId;
   site?: string; 
 }
 
@@ -14,12 +13,9 @@ const brandSchema = new Schema<Brand>({
     unique: true, 
   },
   logo: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: 'Image',
     required: true,
-  },
-  count: {
-    type: Number,
-    default: 0, 
   },
   site: {
     type: String,

@@ -1,11 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-interface ImageURL extends Document {
+interface Image extends Document {
   url: string;
   name : string
 }
 
-const imageUrlSchema = new Schema<ImageURL>({
+const imageSchema = new Schema<Image>({
   url : {
     type: String,
     required: true,
@@ -16,6 +16,6 @@ const imageUrlSchema = new Schema<ImageURL>({
   },
 });
 
-const ImageURL = mongoose.models.ImageURL || mongoose.model<ImageURL>('ImageURL', imageUrlSchema);
+const Image = mongoose.models.Image || mongoose.model<Image>('Image', imageSchema);
 
-export default ImageURL;
+export default Image;

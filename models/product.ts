@@ -1,34 +1,32 @@
-import mongoose, { Types ,Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IProduct extends Document {
   name: string;
   description: string;
   price: number;
   rating: number;
-  features: string[];
-  brand: Types.ObjectId; 
-  category_id: Types.ObjectId;
-  imageUrl: Types.ObjectId;
-  stock: number;
+  features?: string[]; // Optional field for product features
+  image: mongoose.Types.ObjectId | null; // Reference to a single image
 }
 
 const productSchema = new Schema<IProduct>({
   name: {
     type: String,
     required: true,
+    default: 'Default Product Name',
   },
   description: {
     type: String,
     required: true,
+    default: 'Default product description',
   },
   price: {
     type: Number,
     required: true,
   },
-  brand: { 
-    type: Schema.Types.ObjectId,
-    ref: 'Brand', 
-    required: true,
+  features: {
+    type: [String],
+    default: [],
   },
   rating: {
     type: Number,
@@ -36,23 +34,11 @@ const productSchema = new Schema<IProduct>({
     max: 5,
     default: 0,
   },
-  features: {
-    type: [String],
-    default: [],
-  },
-  category_id: {
+  image: {
     type: Schema.Types.ObjectId,
-    ref: 'Category',
+    ref: 'Image', 
     required: true,
-  },
-  imageUrl: {
-    type: Schema.Types.ObjectId,
-    ref: 'ImageURL', 
-    required: true,
-  },
-  stock: {
-    type: Number,
-    required: true,
+    default: null, 
   },
 });
 
