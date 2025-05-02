@@ -1,9 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { IProductImage } from '../types';
 
-export interface IProductImage extends Document {
-  productId: mongoose.Types.ObjectId; // Reference to the Product
-  imageUrl: mongoose.Types.ObjectId[]; // Reference to the Image
-}
 
 const productImageSchema = new Schema<IProductImage>({
   productId: {

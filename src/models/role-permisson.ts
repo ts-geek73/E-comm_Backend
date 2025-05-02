@@ -1,9 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IRolePermission extends Document{
-    role_id: mongoose.Types.ObjectId;
-    permission_id: mongoose.Types.ObjectId;
-}
+import { IRolePermission } from '../types';
 
 const RolePermissionSchema = new Schema<IRolePermission>({
     role_id: {
