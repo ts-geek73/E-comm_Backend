@@ -1,9 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { IProductCategoty } from '../types';
 
-export interface IProductCategoty extends Document {
-  productId: mongoose.Types.ObjectId; // Reference to the Product
-  categories: mongoose.Types.ObjectId[]; // Reference to the Image
-}
+
+// export interface IProductCategoty extends Document {
+//   productId: mongoose.Types.ObjectId; // Reference to the Product
+//   categories: mongoose.Types.ObjectId[]; // Reference to the Image
+// }
 
 const ProductCategotySchema = new Schema<IProductCategoty>({
   productId: {

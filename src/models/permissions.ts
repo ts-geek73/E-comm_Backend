@@ -1,10 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IPermission extends Document {
-  name: string;
-  key: string;
-  description?: string;
-}
+import { IPermission } from '../types';
 
 const permissionSchema = new Schema<IPermission>({
     name: {

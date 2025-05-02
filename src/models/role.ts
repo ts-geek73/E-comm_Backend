@@ -1,9 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { IRole } from '../types';
 
-export interface IRole extends Document {
-  name: string;
-  description?: string;
-}
 
 const roleSchema = new Schema<IRole>({
   name: {

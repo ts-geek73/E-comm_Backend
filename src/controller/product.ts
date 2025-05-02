@@ -7,15 +7,17 @@ import Image from '../models/Image';
 import ProductBrand from '../models/product-brand';
 import ProductCategory from '../models/product-category';
 import ProductImage from '../models/product-image';
+import { IRequestHandler as IProductRequestHandler } from '../types';
 
-const productController = {
-  createProduct: async (req: Request, res: Response): Promise<Response> => {
+const productController: IProductRequestHandler = {
+  createProduct: async (req: Request, res: Response): Promise<void> => {
     try {
       console.log('Backend Product create');
-      let { name, description, price, brands, rating, features, categories, imageUrls } = req.body;
+      let { name, long_description, status, short_description, price, brands, rating, features, categories, imageUrls } = req.body;
 
-      if (!name || !description || !price || !categories || !imageUrls) {
-        return res.status(400).json({ message: 'Missing required fields.' });
+      if (!name || !status || !short_description || !long_description || !price || !categories || !imageUrls) {
+        res.status(400).json({ message: 'Missing required fields.' });
+        return;
       }
       console.log("Product Data", req.body);
 
@@ -23,9 +25,9 @@ const productController = {
       rating = parseFloat(rating || 0);
 
       if (price < 0 || rating < 0 || rating > 5) {
-        return res.status(400).json({ message: 'Invalid numeric values.' });
+        res.status(400).json({ message: 'Invalid numeric values.' });
+        return;
       }
-
 
       const mainImage = imageUrls[0];
       let imageExists = await Image.findOne({ url: mainImage.url });
@@ -39,15 +41,15 @@ const productController = {
 
       console.log("Pass 1");
 
-
       const productExist = await Product.findOne({ name });
 
       let product;
       if (productExist) {
-
         productExist.set({
           name,
-          description,
+          status,
+          long_description,
+          short_description,
           price,
           rating,
           features,
@@ -60,8 +62,10 @@ const productController = {
         // Create new product
         const newProduct = new Product({
           name,
-          description,
+          long_description,
+          short_description,
           price,
+          status,
           rating,
           features,
           image: imageExists._id,
@@ -94,9 +98,7 @@ const productController = {
 
       console.log("Pass 3");
 
-
       if (brands && brands.length > 0) {
-
         await ProductBrand.findOneAndDelete({ productId: product._id });
 
         const brandIds: string[] = [];
@@ -104,7 +106,6 @@ const productController = {
           let brand = await Brand.findOne({ name: brandData.name });
 
           if (!brand && brandData.logo) {
-
             let logoImage = await Image.findOne({ url: brandData.logo.url });
             if (!logoImage) {
               logoImage = new Image({
@@ -137,16 +138,16 @@ const productController = {
 
       console.log("Pass 4");
 
-
       if (categories && categories.length > 0) {
-
         await ProductCategory.findOneAndDelete({ productId: product._id });
 
         const categoryIds: Types.ObjectId[] = [];
         for (const catData of categories) {
-          let category = await Category.findById(catData._id || catData);
-          if (category) {
-            categoryIds.push(category._id as Types.ObjectId);
+          if (catData && catData._id) {
+            let category = await Category.findById(catData._id);
+            if (category) {
+              categoryIds.push(category._id as Types.ObjectId);
+            }
           }
         }
 
@@ -158,19 +159,20 @@ const productController = {
           await productCategories.save();
         }
       }
+
       console.log("Pass All");
 
-      return res.status(200).json({
+      res.status(200).json({
         message: productExist ? 'Product updated successfully.' : 'Product created successfully.',
         product
       });
     } catch (error: any) {
       console.error('Error creating/updating product:', error);
-      return res.status(500).json({ message: 'Internal server error', error: error.message });
+      res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   },
 
-  getBrandsAndCategories: async (req: Request, res: Response): Promise<Response> => {
+  getBrandsAndCategories: async (req: Request, res: Response): Promise<void> => {
     console.log("Get Brands and Categories API");
     try {
       const brands = await Brand.find()
@@ -181,25 +183,22 @@ const productController = {
         .populate('imageUrl', 'url name')
         .sort({ name: 1 });
 
-      return res.status(200).json({ brands, categories });
+      res.status(200).json({ brands, categories });
     } catch (err) {
       console.error('Error fetching brands and categories:', err);
-      return res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: 'Internal server error' });
     }
   },
 
-  getAllProducts: async (req: Request, res: Response): Promise<Response> => {
+  getAllProducts: async (req: Request, res: Response): Promise<void> => {
     try {
       console.log("Get All Products API");
-
 
       const products = await Product.find()
         .populate('image', 'url name')
         .sort({ name: 1 });
 
-
       const allProducts = await Promise.all(products.map(async (product) => {
-
         const productBrands = await ProductBrand.findOne({ productId: product._id })
           .populate({
             path: 'brands',
@@ -223,14 +222,14 @@ const productController = {
         };
       }));
 
-      return res.status(200).json(allProducts);
+      res.status(200).json(allProducts);
     } catch (error) {
       console.error('Error fetching all products:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: 'Internal server error' });
     }
   },
 
-  getLimitedProducts: async (req: Request, res: Response): Promise<Response> => {
+  getLimitedProducts: async (req: Request, res: Response): Promise<void> => {
     try {
       const { start = 0, length = 10, brand, category, pricemin, pricemax, sort } = req.query;
       console.log("Get Limited Products API");
@@ -264,7 +263,6 @@ const productController = {
         }
       }
 
-
       const sortBy: any = sort === 'price' ? { price: 1 } : sort === 'rating' ? { rating: -1 } : { name: 1 };
 
       const totalCount = await Product.countDocuments(filter);
@@ -294,31 +292,32 @@ const productController = {
         };
       });
 
-      return res.status(200).json({
+      res.status(200).json({
         datas: productsWithDetails,
         length: totalCount,
       });
     } catch (error) {
       console.error('Error fetching limited products:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: 'Internal server error' });
     }
   },
 
-
-  getProductById: async (req: Request, res: Response): Promise<Response> => {
+  getProductById: async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       console.log("getProducts with Id", id);
 
       if (!Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid product ID.' });
+        res.status(400).json({ message: 'Invalid product ID.' });
+        return;
       }
 
       const product = await Product.findById(id)
         .populate('image', 'url name');
 
       if (!product) {
-        return res.status(404).json({ message: 'Product not found.' });
+        res.status(404).json({ message: 'Product not found.' });
+        return;
       }
 
       const productBrands = await ProductBrand.findOne({ productId: product._id })
@@ -345,7 +344,6 @@ const productController = {
 
       type Category = { _id: Types.ObjectId; name?: string };
       const categoryIds = productCategories?.categories?.map((cat: Category) => cat._id) || [];
-
 
       let relatedProducts: any[] = [];
       if (categoryIds.length > 0) {
@@ -384,20 +382,21 @@ const productController = {
         }
       }
 
-      return res.status(200).json({ product: fullProduct, relatedProducts });
+      res.status(200).json({ product: fullProduct, relatedProducts });
     } catch (error) {
       console.error('Error fetching product by ID:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: 'Internal server error' });
     }
   },
 
-  searchProduct: async (req: Request, res: Response): Promise<Response> => {
+  searchProduct: async (req: Request, res: Response): Promise<void> => {
     try {
       const { search } = req.query;
       console.log("Search api with, search: ", search);
 
       if (!search) {
-        return res.status(400).json({ message: 'Search query is required.' });
+        res.status(400).json({ message: 'Search query is required.' });
+        return;
       }
 
       const products = await Product.find({
@@ -406,18 +405,10 @@ const productController = {
 
       const fullProducts = await Promise.all(products.map(async (product) => {
         const productBrands = await ProductBrand.findOne({ productId: product._id })
-          .populate("brands", "name")
-        // .populate({
-        //   path: 'brands',
-        //   populate: { path: 'logo', select: 'url name' }
-        // });
+          .populate("brands", "name");
 
         const productCategories = await ProductCategory.findOne({ productId: product._id })
-          .populate("categories", "name")
-        // .populate({
-        //   path: 'categories',
-        //   populate: { path: 'imageUrl', select: 'url name' }
-        // });
+          .populate("categories", "name");
 
         const productImages = await ProductImage.findOne({ productId: product._id })
           .populate('imageUrl', 'url name');
@@ -449,11 +440,12 @@ const productController = {
           };
         }));
 
-        return res.status(404).json({
+        res.status(404).json({
           message: 'Product not found.',
           data: [],
           related: relatedFullProducts
         });
+        return;
       }
 
       // Get some related products
@@ -474,42 +466,44 @@ const productController = {
         };
       }));
 
-      return res.status(200).json({
+      res.status(200).json({
         data: fullProducts,
         related: relatedFullProducts
       });
     } catch (error) {
       console.error('Error searching products:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: 'Internal server error' });
     }
   },
 
-  updateProduct: async (req: Request, res: Response): Promise<Response> => {
-
+  updateProduct: async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       console.log("Update Product API");
-  
+
       if (!Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid product ID.' });
+        res.status(400).json({ message: 'Invalid product ID.' });
+        return;
       }
-  
+
       const product = await Product.findById(id);
       if (!product) {
-        return res.status(404).json({ message: 'Product not found.' });
+        res.status(404).json({ message: 'Product not found.' });
+        return;
       }
-  
-      const { name, description, features, price, brands, rating, categories, imageUrls } = req.body;
-  
+
+      const { name, status, long_description, short_description, features, price, brands, rating, categories, imageUrls } = req.body;
+
       if (imageUrls && !Array.isArray(imageUrls)) {
-        return res.status(400).json({ message: 'imageUrls must be an array.' });
+        res.status(400).json({ message: 'imageUrls must be an array.' });
+        return;
       }
-  
+
       if (name) product.name = name;
-      if (description) product.description = description;
-      if (features) product.features = features;
+      if (long_description) product.long_description = long_description;
+      if (short_description) product.short_description = short_description;
+      if (status) product.status = status;
       if (price) product.price = parseFloat(price);
-      if (rating) product.rating = parseFloat(rating);
 
       if (imageUrls && imageUrls.length > 0) {
         const mainImage = imageUrls[0];
@@ -523,7 +517,7 @@ const productController = {
         }
         product.image = imageExists._id;
       }
-  
+
       await product.save();
 
       if (imageUrls && imageUrls.length > 0) {
@@ -551,13 +545,12 @@ const productController = {
           const productImages = new ProductImage({ productId: product._id, imageUrl: imageIds });
           await productImages.save();
         }
-        
       }
-  
+
       // Handle brands
       if (brands && brands.length > 0) {
         await ProductBrand.findOneAndDelete({ productId: product._id });
-  
+
         const brandIds: Types.ObjectId[] = [];
         for (const brandData of brands) {
           let brand = await Brand.findOne({ name: brandData.name });
@@ -579,77 +572,74 @@ const productController = {
           }
           if (brand) brandIds.push(brand._id);
         }
-  
+
         if (brandIds.length > 0) {
           const productBrands = new ProductBrand({ productId: product._id, brands: brandIds });
           await productBrands.save();
         }
       }
-  
+
       // Handle categories
       if (categories && categories.length > 0) {
         await ProductCategory.findOneAndDelete({ productId: product._id });
-  
+
         const categoryIds: Types.ObjectId[] = [];
         for (const catData of categories) {
           const category = await Category.findById(catData._id || catData);
           if (category) categoryIds.push(category._id as Types.ObjectId);
         }
-  
+
         if (categoryIds.length > 0) {
           const productCategories = new ProductCategory({ productId: product._id, categories: categoryIds });
           await productCategories.save();
         }
       }
-  
+
       // Populate in-place
-      await product.populate('image', 'url name', );
-  
+      await product.populate('image', 'url name');
+
       const productBrands = await ProductBrand.findOne({ productId: product._id })
-        .populate({ path: 'brands', populate: { path: 'logo', select: 'url name' }, });
-  
+        .populate({ path: 'brands', populate: { path: 'logo', select: 'url name' }});
+
       const productCategories = await ProductCategory.findOne({ productId: product._id })
         .populate({ path: 'categories', populate: { path: 'imageUrl', select: 'url name' }});
-  
+
       const productImages = await ProductImage.findOne({ productId: product._id })
-        .populate('imageUrl', 'url name', );
-  
+        .populate('imageUrl', 'url name');
+
       // Avoid duplicating main image in the images array
       const allImages = (productImages?.imageUrl || []).filter(
         (img: any) => !product.image || String(img._id) !== String(product.image._id)
       );
-  
+
       const fullProduct = {
         ...product.toObject(),
         brands: productBrands?.brands || [],
         categories: productCategories?.categories || [],
         images: product.image ? [product.image, ...allImages] : allImages
       };
-  
 
-  
-      return res.status(200).json({ message: 'Product updated successfully.', product: fullProduct });
-  
+      res.status(200).json({ message: 'Product updated successfully.', product: fullProduct });
     } catch (error) {
-
       console.error('Error updating product:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: 'Internal server error' });
     }
-  },  
+  },
 
-
-  deleteProduct: async (req: Request, res: Response): Promise<Response> => {
+  deleteProduct: async (req: Request, res: Response): Promise<void> => {
     try {
       console.log("Delete Product API");
       const { id } = req.params;
 
       if (!Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid product ID.' });
+        res.status(400).json({ message: 'Invalid product ID.' });
+        return;
       }
 
       const product = await Product.findById(id);
       if (!product) {
-        return res.status(404).json({ message: 'Product not found.' });
+        res.status(404).json({ message: 'Product not found.' });
+        return;
       }
 
       // Delete all related records
@@ -660,10 +650,10 @@ const productController = {
       // Finally delete the product
       await Product.findByIdAndDelete(id);
 
-      return res.status(200).json({ message: 'Product deleted successfully.' });
+      res.status(200).json({ message: 'Product deleted successfully.' });
     } catch (error) {
       console.error('Error deleting product:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: 'Internal server error' });
     }
   },
 };

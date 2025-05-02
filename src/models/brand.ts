@@ -1,12 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { IBrand } from '../types';
 
-interface Brand extends Document {
-  name: string;
-  logo: mongoose.Types.ObjectId;
-  site?: string; 
-}
 
-const brandSchema = new Schema<Brand>({
+const brandSchema = new Schema<IBrand>({
   name: {
     type: String,
     required: true,
@@ -23,6 +19,6 @@ const brandSchema = new Schema<Brand>({
   },
 });
 
-const Brand = mongoose.models.Brand || mongoose.model<Brand>('Brand', brandSchema);
+const Brand = mongoose.models.Brand || mongoose.model<IBrand>('Brand', brandSchema);
 
 export default Brand;

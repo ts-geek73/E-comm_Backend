@@ -1,56 +1,47 @@
 import { Request, Response } from 'express';
 import User from '../models/user';
-import jwt, { JwtPayload } from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
+import { UserData } from '../types';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-interface UserData {
-  jwtToken: string;
-  clerkId: string;
-  userId: string;
-  name: string;
-  email: string;
-  provider: string;
-  password ?:string;
-  googleAuthToken?: string;
-  githubAuthToken?: string;
-}
 
-const JWKS_URI = process.env.JWKS_URI || '';
-const JWT_ISSUER = process.env.JWT_ISSUER || '';
+// import jwt, { JwtPayload } from 'jsonwebtoken';
+// import jwksClient from 'jwks-rsa';
 
-const client = jwksClient({
-  jwksUri: JWKS_URI,
-});
+// const JWKS_URI = process.env.JWKS_URI || '';
+// const JWT_ISSUER = process.env.JWT_ISSUER || '';
 
-let cachedPublicKeys: { [key: string]: string } = {};
+// const client = jwksClient({
+//   jwksUri: JWKS_URI,
+// });
 
-async function getLocalKey(header: any): Promise<string | null> {
-  const kid = header.kid;
+// let cachedPublicKeys: { [key: string]: string } = {};
 
-  if (cachedPublicKeys[kid]) {
-    return cachedPublicKeys[kid];
-  }
+// async function getLocalKey(header: any): Promise<string | null> {
+//   const kid = header.kid;
 
-  try {
-    const key = await client.getSigningKey(kid);
-    const publicKey = key?.getPublicKey();
-    if (publicKey) {
-      cachedPublicKeys[kid] = publicKey; 
-      return publicKey;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error fetching signing key:', error);
-    return null;
-  }
-}
+//   if (cachedPublicKeys[kid]) {
+//     return cachedPublicKeys[kid];
+//   }
+
+//   try {
+//     const key = await client.getSigningKey(kid);
+//     const publicKey = key?.getPublicKey();
+//     if (publicKey) {
+//       cachedPublicKeys[kid] = publicKey; 
+//       return publicKey;
+//     }
+//     return null;
+//   } catch (error) {
+//     console.error('Error fetching signing key:', error);
+//     return null;
+//   }
+// }
 
 const UserController = {
 
-  createUser: async (req: Request, res: Response): Promise<Response> => {
+  createUser: async (req: Request, res: Response) => {
     try {
       console.log("enter in create api");
       
@@ -58,29 +49,13 @@ const UserController = {
       console.log("Body", userData);
       
 
-      const {  email, provider, name, clerkId, userId , password } = userData;
+      const {  email, name, sessionId, clerkId, userId } = userData;
 
-      if (!clerkId || !userId || !name || !email || !provider) {
+      if (!clerkId || !userId || !name || !email || !sessionId ) {
         return res.status(400).json({ message: 'Missing required fields' });
       }
       
       console.log("Pass1");
-      
-      // const emailExist = await User.findOne({ email });
-      // if (emailExist) {
-      //   console.log("if in email");
-        
-      //   return res.status(409).json({ message: 'Email already exists' });
-      // }
-      
-      const userExist = await User.findOne({ userId });
-      console.log("Pass1");
-      // if (idExist) {
-      //   console.log("if in id exist");
-      //   return res.status(409).json({ message: 'User ID already exists' });
-      // }
-
-      // await User.updateOne({userExist , userData})
       await User.findOneAndUpdate(
         { userId: userId },
         userData,
@@ -90,26 +65,17 @@ const UserController = {
       console.log("Pass1");
 
 
-      if (provider === 'normal' && password) {
-        console.log(" Password== ", password);
-        
-      }
-      console.log("Password after ");
-      // const newUser = new User(userData);
-
-      // await newUser.save();
-
-
+      
       console.log("User Update SuccessFully");
       
-      return res.status(201).json({ message: 'User data stored successfully' });
+       return res.status(201).json({ message: 'User data stored successfully' });
     } catch (error: any) {
       console.error('Error storing user data:', error);
-      return res.status(500).json({ message: 'Internal server error', error: error.message });
+       res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   },
 
-  protected: async (req: Request, res: Response): Promise<Response> => {
+  protected: async (req: Request, res: Response) => {
     try {
       console.log("Protected APi ");
       
@@ -150,14 +116,14 @@ const UserController = {
           //   console.log("not a Admin");
           //   return res.status(401).json({ message: 'User does not have admin access' });
           // }
-            return res.status(200).json({ message: 'User authenticated' });
+             res.status(200).json({ message: 'User authenticated' });
       // } catch (jwtError) {
       //   console.error('JWT verification error:', jwtError);
       //   return res.status(401).json({ message: 'Invalid token' });
       // }
     } catch (error) {
       console.error('Server error:', error);
-      return res.status(500).send('Internal Server Error');
+       res.status(500).send('Internal Server Error');
     }
   },
 };

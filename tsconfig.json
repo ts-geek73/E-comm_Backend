@@ -12,7 +12,7 @@
   },
   "include": [
     "src/**/*.ts", 
-    "models/**/*.ts", 
+    "models/**/*.ts", "src/types.ts", 
   ],       
   "exclude": ["node_modules"]         // Exclude node_modules from compilation
 }

@@ -1,13 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IProduct extends Document {
-  name: string;
-  description: string;
-  price: number;
-  rating: number;
-  features?: string[]; // Optional field for product features
-  image: mongoose.Types.ObjectId | null; // Reference to a single image
-}
+import { IProduct } from '../types';
 
 const productSchema = new Schema<IProduct>({
   name: {
@@ -15,7 +7,17 @@ const productSchema = new Schema<IProduct>({
     required: true,
     default: 'Default Product Name',
   },
-  description: {
+  short_description: {
+    type: String,
+    required: true,
+    default: 'Default product description',
+  },
+  status: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
+  long_description: {
     type: String,
     required: true,
     default: 'Default product description',
@@ -24,16 +26,7 @@ const productSchema = new Schema<IProduct>({
     type: Number,
     required: true,
   },
-  features: {
-    type: [String],
-    default: [],
-  },
-  rating: {
-    type: Number,
-    min: 0,
-    max: 5,
-    default: 0,
-  },
+
   image: {
     type: Schema.Types.ObjectId,
     ref: 'Image', 

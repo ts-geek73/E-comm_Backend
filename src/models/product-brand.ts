@@ -1,9 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IProductBrand extends Document {
-  productId: mongoose.Types.ObjectId; // Reference to the Product
-  brands: mongoose.Types.ObjectId[]; // Reference to the Image
-}
+import { IProductBrand } from '../types';
 
 const ProductBrandSchema = new Schema<IProductBrand>({
   productId: {
