@@ -1,6 +1,5 @@
 import { Schema, model, Document } from 'mongoose';
-import{ IUserProvider , UserProvider } from '../types';
-// Enum to define types of user providers
+import{ IUserProvider , UserProvider as ListProviders } from '../types';
 
 
 const userSchema = new Schema<IUserProvider>({
@@ -9,13 +8,14 @@ const userSchema = new Schema<IUserProvider>({
   password: { type: String }, 
   provider: {
     type: String,
-    enum: Object.values(UserProvider),
+    enum: Object.values(ListProviders),
     required: true
   },
   authKey: { type: String },
 
 });
 
-const User = model<IUserProvider>('User', userSchema);
+const UserProvider = model<IUserProvider>('UserProvider', userSchema);
+export default UserProvider;
 
-export { User, IUserProvider, UserProvider };
+export { IUserProvider, ListProviders };
