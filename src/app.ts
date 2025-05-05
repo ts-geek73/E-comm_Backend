@@ -3,9 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
-import categoryRoute from './routres/category';
-import productRoute from './routres/product';
-import userRoute from './routres/user';
+import routes from './routres';
+
+
 
 dotenv.config();
 
@@ -32,9 +32,7 @@ const connectDB = async () => {
       res.json(req);
     });
     
-    app.use('/', userRoute);
-    app.use('/product', productRoute);
-    app.use('/category', categoryRoute);
+    app.use('/', routes);
 
     app.listen(port, () => {
       console.log(`App running on port ${port}`);

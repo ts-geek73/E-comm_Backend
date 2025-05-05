@@ -1,21 +1,42 @@
-import { Request, Response } from 'express';
-import { Types } from 'mongoose';
+import { Request, Response , RequestHandler} from 'express';
+import { Types , Document} from 'mongoose';
+
+// type Handler = (req: Request, res: Response) => Promise<void | Request>;
+
 
 export interface IRequestHandler {
-  createProduct ?: (req: Request, res: Response) => Promise<void>;
-  getBrandsAndCategories ?: (req: Request, res: Response) => Promise<void>;
-  getAllProducts ?: (req: Request, res: Response) => Promise<void>;
-  getLimitedProducts ?: (req: Request, res: Response) => Promise<void>;
-  getProductById?: (req: Request, res: Response) => Promise<void>;
-  searchProduct?:(req: Request, res: Response) => Promise<void>;
-  updateProduct?: (req: Request, res: Response) => Promise<void>;
-  deleteProduct?: (req: Request, res: Response) => Promise<void>;
-  protected?: (req: Request, res: Response) => Promise<void>;
-  createUser?: (req: Request, res: Response) => Promise<void | Request>;
+  [key: string]: RequestHandler ;
 }
 
-export interface IProduct {
-  _id?: Types.ObjectId;
+export interface IResponseData<T> {
+  success: boolean;
+  message: string;
+  data: T | null;
+  field?: string;
+  details?: string;
+}
+
+
+export interface ErrorResponse {
+  message: string;
+  field?: string;
+  details?: string;
+}
+
+export interface IProductQueryParams {
+  start?: string;
+  length?: string;
+  brand?: string;
+  category?: string;
+  pricemin?: string;
+  pricemax?: string;
+  sort?: string;
+  search?: string;
+}
+
+export interface IProduct extends Document{
+
+  _id: Types.ObjectId;
   name: string;
   status: boolean;
   short_description: string;
@@ -59,7 +80,7 @@ export interface IUserProvider extends Document {
 
 
 export interface IBrand {
-  _id?: Types.ObjectId;
+  _id: Types.ObjectId;
   name: string;
   logo?: Types.ObjectId;
   site?: string;
@@ -72,7 +93,7 @@ export interface ICategory extends Document {
 }
 
 export interface IImage {
-  _id?: Types.ObjectId;
+  _id: Types.ObjectId;
   name: string;
   url: string;
 }
@@ -84,7 +105,7 @@ export interface IProductBrand {
 }
 
 export interface IProductCategoty extends Document {
-  _id?: Types.ObjectId;
+  _id: Types.ObjectId;
   productId: Types.ObjectId; 
   categories: Types.ObjectId[]; 
 }
@@ -109,4 +130,18 @@ export interface IPermission extends Document {
   name: string;
   key: string;
   description?: string;
+}
+
+export interface IProductReview{
+  _id?: Types.ObjectId;
+  product_id : Types.ObjectId 
+  user_id : string 
+  rate: number
+  description : string
+}
+
+export interface IReviewImages{
+  product_id : Types.ObjectId;
+  user_id : string
+  review_images : Types.ObjectId[];
 }
