@@ -102,7 +102,6 @@ const handleProductImages = async (productId: Types.ObjectId, imageUrls: Array<{
   return imageIds;
 };
 
-// Brand handling functions
 const handleProductBrands = async (productId: Types.ObjectId, brands: Array<{ name: string; logo?: { url: string; name?: string }; site?: string }>): Promise<Types.ObjectId[]> => {
   const brandIds: Types.ObjectId[] = [];
   

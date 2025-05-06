@@ -4,8 +4,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
 import routes from './routres';
-
-
+import path from 'path';
 
 dotenv.config();
 
@@ -15,7 +14,12 @@ const uri = process.env.MONGO_URL;
 const app = express();
 
 app.use(cors());
+app.use('/uploads/products', express.static(path.join(__dirname, '/uploads/products/')));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+console.log('Serving static files from:', path.join(__dirname, 'uploads/products'));
+
 
 const connectDB = async () => {
   try {
@@ -41,7 +45,5 @@ const connectDB = async () => {
     console.error('Mongoose connection error:', err);
   }
 };
-
-
 
 connectDB();
