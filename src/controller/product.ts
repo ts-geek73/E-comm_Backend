@@ -1,131 +1,85 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
-import { Brand , Product , Category, ProductBrand, ProductCategory, ProductImage} from "../models"
 import { 
-  IProduct, 
-  IRequestHandler, 
-  IImage, 
-  ICategory,
+  findOrCreateImage, 
+  handleProductBrands, 
+  handleProductCategories, 
+  handleProductImages, 
+  sendErrorResponse, 
+  sendSuccessResponse, 
+  validateNumericFields, 
+  validateRequiredFields 
+} from '../functions/product';
+import { Brand, Category, Product, ProductBrand, ProductCategory, ProductImage } from "../models";
+import {
+  IProduct,
   IProductQueryParams,
+  IRequestHandler
 } from '../types';
-import { findOrCreateImage, handleProductBrands, handleProductCategories, handleProductImages, sendErrorResponse, sendSuccessResponse, validateNumericFields, validateRequiredFields } from '../functions/product';
 
 const productController: IRequestHandler = {
   createProduct: async (req: Request, res: Response): Promise<void> => {
     try {
       console.log('Backend Product create');
-      const { 
-        name, 
-        long_description, 
-        status, 
-        short_description, 
-        price, 
-        brands, 
-        rating, 
-        features, 
-        categories, 
-        imageUrls 
+      const {
+        name,
+        long_description,
+        status,
+        short_description,
+        price,
+        brands,
+        rating = 0,
+        features,
+        categories,
+        imageUrls,
       } = req.body;
-
-      // Validate required fields
+  
       const requiredFields = ['name', 'status', 'short_description', 'long_description', 'price', 'categories', 'imageUrls'];
       const missingField = validateRequiredFields(req.body, requiredFields);
-      if (missingField) {
-        sendErrorResponse(res, missingField);
-        return;
-      }
-
-      // Validate numeric fields
+      if (missingField) return sendErrorResponse(res, missingField);
+  
       const priceValue = parseFloat(price);
-      const ratingValue = parseFloat(rating || 0);
-      const numericError = validateNumericFields(
-        { price: priceValue, rating: ratingValue },
-        { price: { min: 0 }, rating: { min: 0, max: 5 } }
-      );
-      
-      if (numericError) {
-        sendErrorResponse(res, numericError);
-        return;
-      }
-
-      console.log("Product Data", req.body);
-
-      // Get or create main image
+      const ratingValue = parseFloat(rating);
+      const numericError = validateNumericFields({ price: priceValue, rating: ratingValue }, { price: { min: 0 }, rating: { min: 0, max: 5 } });
+      if (numericError) return sendErrorResponse(res, numericError);
+  
       if (!Array.isArray(imageUrls) || imageUrls.length === 0) {
-        sendErrorResponse(res, {
-          message: 'Invalid image data',
-          field: 'imageUrls',
-          details: 'At least one image is required'
-        });
-        return;
+        return sendErrorResponse(res, { message: 'At least one image is required', field: 'imageUrls' });
       }
-
+  
       const mainImageId = await findOrCreateImage(imageUrls[0], `Image for ${name}`);
-
-      // Find or create product
-      const productExist = await Product.findOne({ name });
-      let product: IProduct;
-
-      if (productExist) {
-        productExist.set({
-          name,
-          status,
-          long_description,
-          short_description,
-          price: priceValue,
-          rating: ratingValue,
-          features,
-          image: mainImageId,
-        });
-        product = await productExist.save();
+      let product = await Product.findOne({ name });
+  
+      const productData = {
+        name,
+        long_description,
+        short_description,
+        status,
+        price: priceValue,
+        rating: ratingValue,
+        features,
+        image: mainImageId,
+      };
+  
+      if (product) {
+        product.set(productData);
+        await product.save();
         console.log("Product updated");
       } else {
-        // Create new product
-        const newProduct = new Product({
-          name,
-          long_description,
-          short_description,
-          price: priceValue,
-          status,
-          rating: ratingValue,
-          features,
-          image: mainImageId,
-        });
-        product = await newProduct.save();
+        product = new Product(productData);
+        await product.save();
         console.log("New product created");
       }
-
-      // Handle product images
+  
       await handleProductImages(product._id, imageUrls, name);
-      
-      // Handle brands if provided
-      if (brands && Array.isArray(brands) && brands.length > 0) {
-        await handleProductBrands(product._id, brands);
-      }
-      
-      // Handle categories if provided
-      if (categories && Array.isArray(categories) && categories.length > 0) {
-        await handleProductCategories(product._id, categories);
-      }
-
-      console.log("All product relationships processed");
-      
-      sendSuccessResponse(
-        res, 
-        { product }, 
-        productExist ? 'Product updated successfully.' : 'Product created successfully.'
-      );
+      if (Array.isArray(brands) && brands.length) await handleProductBrands(product._id, brands);
+      if (Array.isArray(categories) && categories.length) await handleProductCategories(product._id, categories);
+  
+      sendSuccessResponse(res, { product }, product.isNew ? 'Product created successfully.' : 'Product updated successfully.');
     } catch (error: any) {
       console.error('Error creating/updating product:', error);
-      sendErrorResponse(
-        res, 
-        {
-          message: 'Failed to create/update product',
-          details: error.message
-        }, 
-        500
-      );
-    }
+      sendErrorResponse(res, { message: 'Failed to create/update product', details: error.message }, 500);
+    }  
   },
 
   getBrandsAndCategories: async (_req: Request, res: Response): Promise<void> => {
@@ -396,120 +350,76 @@ const productController: IRequestHandler = {
   },
 
   updateProduct: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      console.log("Update Product API");
-      
-      if (!Types.ObjectId.isValid(id)) {
-        sendErrorResponse(res, {
-          message: 'Invalid product ID',
-          field: 'id',
-          details: 'The provided ID is not a valid ObjectId'
-        });
-        return;
-      }
-      
-      const product = await Product.findById(id);
-      if (!product) {
-        sendErrorResponse(res, {
-          message: 'Product not found',
-          field: 'id',
-          details: `No product exists with ID: ${id}`
-        }, 404);
-        return;
-      }
-
-      const { 
-        name, 
-        status, 
-        long_description, 
-        short_description, 
-        price, 
-        brands, 
-        categories, 
-        imageUrls 
-      } = req.body;
-      
-      if (imageUrls !== undefined && !Array.isArray(imageUrls)) {
-        sendErrorResponse(res, {
-          message: 'Invalid image data',
-          field: 'imageUrls',
-          details: 'imageUrls must be an array'
-        });
-        return;
-      }
-
-      const updatedProductData: Partial<IProduct> = {
-        ...(name !== undefined && { name }),
-        ...(long_description !== undefined && { long_description }),
-        ...(short_description !== undefined && { short_description }),
-        ...(status !== undefined && { status }),
-        ...(price !== undefined && { price: parseFloat(price) }),
-      };
-
-      if (imageUrls && imageUrls.length > 0) {
-        const mainImageId = await findOrCreateImage(
-          imageUrls[0], 
-          `Image for ${name || product.name}`
-        );
-        updatedProductData.image = mainImageId;
-      }
-      
-      Object.assign(product, updatedProductData);
-      await product.save();
-
-      if (imageUrls && imageUrls.length > 0) {
-        await handleProductImages(product._id, imageUrls, product.name);
-      }
-      
-      if (brands && Array.isArray(brands) && brands.length > 0) {
-        await handleProductBrands(product._id, brands);
-      }
-      
-      // Handle categories if provided
-      if (categories && Array.isArray(categories) && categories.length > 0) {
-        await handleProductCategories(product._id, categories);
-      }
-      
-      // Get full updated product data with relationships
-      await product.populate('image', 'url name');
-      
-      const productBrands = await ProductBrand.findOne({ productId: product._id })
-        .populate({ 
-          path: 'brands', 
-          populate: { path: 'logo', select: 'url name' } 
-        });
-      
-      const productCategories = await ProductCategory.findOne({ productId: product._id })
-        .populate({ 
-          path: 'categories', 
-          populate: { path: 'imageUrl', select: 'url name' } 
-        });
-      
-      const productImages = await ProductImage.findOne({ productId: product._id })
-        .populate('imageUrl', 'url name');
-      
-        const allImages = (productImages?.imageUrl || []).filter(
-          (img) =>
-            !product.image || img._id.toString() !== (product.image._id?.toString?.() || "")
-        );
-        
-      
-      const fullProduct = {
-        ...product.toObject(),
-        brands: productBrands?.brands || [],
-        categories: productCategories?.categories || [],
-        images: product.image ? [product.image, ...allImages] : allImages
-      };
-      
-      sendSuccessResponse(res, { product: fullProduct }, 'Product updated successfully');
-    } catch (error: any) {
-      console.error('Error updating product:', error);
-      sendErrorResponse(res, {
-        message: 'Failed to update product',
-        details: error.message
-      }, 500);
+   try {
+    console.log("Update Product");
+    
+    const { id } = req.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return sendErrorResponse(res, { message: 'Invalid product ID', field: 'id' });
     }
+
+    const product = await Product.findById(id);
+    if (!product) return sendErrorResponse(res, { message: 'Product not found', field: 'id' }, 404);
+
+    const {
+      name,
+      status,
+      long_description,
+      short_description,
+      price,
+      brands,
+      categories,
+      imageUrls,
+    } = req.body;
+
+    console.log("Body",req.body);
+    
+
+    if (imageUrls !== undefined && !Array.isArray(imageUrls)) {
+      return sendErrorResponse(res, { message: 'imageUrls must be an array', field: 'imageUrls' });
+    }
+
+    const updates: Partial<IProduct> = {
+      ...(name && { name }),
+      ...(status && { status }),
+      ...(long_description && { long_description }),
+      ...(short_description && { short_description }),
+      ...(price && { price: parseFloat(price) }),
+    };
+
+    if (imageUrls?.length) {
+      const mainImageId = await findOrCreateImage(imageUrls[0], `Image for ${name || product.name}`);
+      updates.image = mainImageId;
+    }
+
+    Object.assign(product, updates);
+    await product.save();
+
+    if (imageUrls?.length) await handleProductImages(product._id, imageUrls, product.name);
+    if (brands?.length) await handleProductBrands(product._id, brands);
+    if (categories?.length) await handleProductCategories(product._id, categories);
+
+    await product.populate('image', 'url name');
+    const [productBrands, productCategories, productImages] = await Promise.all([
+      ProductBrand.findOne({ productId: product._id }).populate({ path: 'brands', populate: { path: 'logo', select: 'url name' } }),
+      ProductCategory.findOne({ productId: product._id }).populate({ path: 'categories', populate: { path: 'imageUrl', select: 'url name' } }),
+      ProductImage.findOne({ productId: product._id }).populate('imageUrl', 'url name'),
+    ]);
+
+    const allImages = (productImages?.imageUrl || []).filter(img => !product.image || img._id.toString() !== product.image._id?.toString());
+
+    const fullProduct = {
+      ...product.toObject(),
+      brands: productBrands?.brands || [],
+      categories: productCategories?.categories || [],
+      images: product.image ? [product.image, ...allImages] : allImages,
+    };
+
+    sendSuccessResponse(res, { product: fullProduct }, 'Product updated successfully');
+  } catch (error: any) {
+    console.error('Error updating product:', error);
+    sendErrorResponse(res, { message: 'Failed to update product', details: error.message }, 500);
+  }
   },
 
   deleteProduct: async (req: Request, res: Response): Promise<void> => {
