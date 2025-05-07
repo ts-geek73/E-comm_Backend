@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs';
 
 export const findOrCreateImage = async (url: string, name: string) => {
-  // If the URL is already a full URL, use it directly
   if (url.startsWith('http://') || url.startsWith('https://')) {
     const existingImage = await Image.findOne({ url });
     if (existingImage) return existingImage._id;

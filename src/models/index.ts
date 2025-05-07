@@ -13,4 +13,5 @@ export { default as ProductCategory } from "./product-category";
 export { default as UserProvider } from "./provider";
 export { default as Review } from "./review";
 export { default as Role } from "./role";
+export { default as ShoppingCart } from "./shoppingCart";
 

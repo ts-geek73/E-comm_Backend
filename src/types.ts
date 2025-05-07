@@ -145,3 +145,14 @@ export interface IReviewImages{
   user_id : string
   review_images : Types.ObjectId[];
 }
+
+export interface IProductCart{
+  product_id : Types.ObjectId
+  qty : number
+  notes ?: string
+}
+
+export interface IShoppingCart extends Document{
+  user_id : string
+  products : IProductCart[];
+}
