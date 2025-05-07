@@ -10,12 +10,14 @@ import {
   validateNumericFields, 
   validateRequiredFields 
 } from '../functions/product';
-import { Brand, Category, Product, ProductBrand, ProductCategory, ProductImage } from "../models";
+import { Brand, Category,Image, Product, ProductBrand, ProductCategory, ProductImage } from "../models";
 import {
   IProduct,
   IProductQueryParams,
   IRequestHandler
 } from '../types';
+import { getAbsoluteImageUrl, removeImageFile } from '../functions/image';
+import path from 'path';
 
 const productController: IRequestHandler = {
   createProduct: async (req: Request, res: Response): Promise<void> => {
@@ -151,11 +153,15 @@ const productController: IRequestHandler = {
       if (Object.keys(priceRange).length) filter.price = priceRange;
   
       // Sorting
-      const sortBy: Record<string, 1 | -1> = {
-        price: 1,
-        rating: -1,
-        default: 1,
+      const sortBy: Record<string, any> = {
+        'price_asc': { price: 1 },
+        'price_desc': { price: -1 },
+        'rating_desc': { rating: -1 },
+  
       };
+
+      const sortOrder = sortBy[sort || ''] || { _id: -1 };
+
 
       console.log("filters" , filter);
       
@@ -163,7 +169,7 @@ const productController: IRequestHandler = {
       // Main query
       const totalCount = await Product.countDocuments(filter);
       const products = await Product.find(filter)
-        .sort(sortBy)
+        .sort(sortOrder)
         .skip(startNum)
         .limit(lengthNum)
         .populate('image', 'url name')
@@ -180,21 +186,32 @@ const productController: IRequestHandler = {
       console.log("Pass 1");
       
   
-      const getRelations = (list: any[], productId: any, key: string) =>
-        list.filter(r => r.productId.toString() === productId.toString()).flatMap(r => r[key]);
+
+      const normalizeImage = (img: any) => ({
+        ...img,
+        url: getAbsoluteImageUrl(req, img.url)
+      });
   
-      const productsWithDetails = products.map(product => ({
-        ...product,
-        brands: getRelations(brandRelations, product._id, 'brands'),
-        categories: getRelations(categoryRelations, product._id, 'categories'),
-        images: getRelations(imageRelations, product._id, 'imageUrl'),
-      }));
+      const productsWithDetails = products.map(product => {
+        const productBrands = brandRelations.find(r => r.productId.toString() === product._id.toString());
+        const productCategories = categoryRelations.find(r => r.productId.toString() === product._id.toString());
+        const productImages = imageRelations.find(r => r.productId.toString() === product._id.toString());
+      
+        return {
+          ...product,
+          image: product.image ? normalizeImage(product.image) : undefined,
+          brands: productBrands?.brands || [],
+          categories: productCategories?.categories || [],
+          images: productImages?.imageUrl
+              ? productImages.imageUrl.map(normalizeImage)
+              // : [normalizeImage(productImages.imageUrl)]
+            : [],
+        };
+      });
+      
 
       console.log("Pass 2", productsWithDetails.length);
       
-
-      
-  
       if (!productsWithDetails.length && search !== undefined) {
         sendErrorResponse(res, {
           message: 'Product not found',
@@ -205,8 +222,6 @@ const productController: IRequestHandler = {
 
       console.log("Pass 3");
       
-  
-      // Optional related products if search is used
       if (search && search !== "undefined") {
         console.log("Inside the search");
         
@@ -293,11 +308,22 @@ const productController: IRequestHandler = {
       const productImages = await ProductImage.findOne({ productId: product._id })
         .populate('imageUrl', 'url name');
 
+        const normalizeImage = (img: any) => ({
+          ...img,
+          url: getAbsoluteImageUrl(req, img.url)
+        });
+    
+
       const fullProduct = {
         ...product.toObject(),
+        image: product.image ? normalizeImage(product.image) : undefined,
         brands: productBrands?.brands || [],
         categories: productCategories?.categories || [],
-        images: productImages?.imageUrl || []
+        images: productImages?.imageUrl
+        ? Array.isArray(productImages.imageUrl)
+          ? productImages.imageUrl.map(normalizeImage)
+          : normalizeImage(productImages.imageUrl)
+        : []
       };
       
       const categoryIds: Types.ObjectId[] = productCategories?.categories || [];
@@ -316,7 +342,6 @@ const productController: IRequestHandler = {
             _id: { $in: relatedProductIds }
           }).populate('image', 'url name');
           
-          // Get additional data for related products
           relatedProducts = await Promise.all(relatedProductsData.map(async (relProduct) => {
             const relBrands = await ProductBrand.findOne({ productId: relProduct._id })
               .populate({
@@ -332,6 +357,7 @@ const productController: IRequestHandler = {
             
             return {
               ...relProduct.toObject(),
+              image: relProduct.image ? normalizeImage(relProduct.image) : undefined,
               brands: relBrands?.brands || [],
               categories: relCategories?.categories || []
             };
@@ -445,6 +471,29 @@ const productController: IRequestHandler = {
         }, 404);
         return;
       }
+
+      if (product.image ) {
+        const image = await Image.findOne({ _id : product?.image })
+        const filePath = path.join(process.cwd(), 'public', image.url);
+        removeImageFile(filePath); 
+      }
+
+      const reviewImages = await ProductImage.findOne({ product_id: id })
+      .populate('review_images');
+
+   if (reviewImages) {
+      // Delete physical image files
+      reviewImages.imageUrl.forEach((img: any) => {
+         if (!img.url.startsWith('http')) {
+            const filePath = path.join(process.cwd(), 'public', img.url);
+            removeImageFile(filePath);
+         }
+      });
+
+    }
+
+  
+  
       
       // Delete all related records in one transaction
       await Promise.all([

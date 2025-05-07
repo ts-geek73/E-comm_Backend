@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { body, param, ValidationError, validationResult } from 'express-validator';
 import { Types } from 'mongoose';
 import { sendErrorResponse } from '../functions/product';
+import { User } from '../models';
 
 // Product validation rules
 export const productValidationRules = [
@@ -82,7 +83,6 @@ export const productIdValidation = [
     .custom((value) => Types.ObjectId.isValid(value)).withMessage('Invalid product ID format')
 ];
 
-// Validation middleware
 export const validate = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -95,4 +95,36 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
     }, 400);
   }
   next();
+};
+
+export const userValidate = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.body.user_id as string; 
+
+  if (!userId) {
+    return sendErrorResponse(res, {
+      message: 'User ID is missing in the request headers.',
+      field: 'user_id',
+      details: 'Authentication required'
+    }, 401); 
+  }
+
+  try {
+    const user = await User.findOne({userId});
+    if (!user) {
+      return sendErrorResponse(res, {
+        message: 'Invalid User ID.',
+        field: 'user_id',
+        details: 'User not found'
+      }, 404); 
+    }
+
+    // req.user_id = user; 
+    next();
+  } catch (error) {
+    console.error('Error validating user:', error);
+    return sendErrorResponse(res, {
+      message: 'Internal server error while validating user.',
+      details: "user Invalid"
+    }, 500); 
+  }
 };

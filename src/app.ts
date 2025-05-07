@@ -14,12 +14,12 @@ const uri = process.env.MONGO_URL;
 const app = express();
 
 app.use(cors());
-app.use('/uploads/products', express.static(path.join(__dirname, '/uploads/products/')));
+app.use(
+  '/uploads/products',
+  express.static(path.join(__dirname, '../../public/uploads/products'))
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-console.log('Serving static files from:', path.join(__dirname, 'uploads/products'));
-
 
 const connectDB = async () => {
   try {

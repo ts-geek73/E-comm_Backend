@@ -10,6 +10,8 @@ const sendSuccessResponse = <T>(res: Response, data: T, message: string = 'Succe
     message,
     data
   };
+  console.log("success");
+  
   res.status(statusCode).json(responseData);
 };
 
@@ -22,6 +24,8 @@ const sendErrorResponse = (res: Response, error: ErrorResponse | string, statusC
     ...(typeof error !== 'string' && error.field && { field: error.field }),
     ...(typeof error !== 'string' && error.details && { details: error.details })
   };
+  console.log("fail", message);
+  
   res.status(statusCode).json(responseData);
 };
 
