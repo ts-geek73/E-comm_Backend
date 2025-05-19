@@ -73,14 +73,18 @@ const CartController: IRequestHandler = {
 
   updateCart: async (req: Request, res: Response) => {
     try {
-      const { user_id, products } = req.body;
+      const { user_id, product } = req.body;
+      console.log("Update cart",product);
+      
 
       let cart = await ShoppingCart.findOne({ user_id });
+    const incomingProducts = Array.isArray(product) ? product : [product];
+      
 
       if (!cart) {
-        cart = new ShoppingCart({ user_id, products });
+        cart = new ShoppingCart({ user_id, products : [product] });
       } else {
-        cart.products = products;
+        cart.products = [... cart.products ,...incomingProducts];
       }
 
       await cart.save();
