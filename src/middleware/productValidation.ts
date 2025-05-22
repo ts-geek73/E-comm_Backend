@@ -97,7 +97,7 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-export const userValidate = async (req: Request, res: Response, next: NextFunction) => {
+export const userIdValidate = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.body.user_id as string; 
 
   if (!userId) {
