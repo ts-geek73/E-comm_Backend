@@ -156,3 +156,22 @@ export interface IShoppingCart extends Document{
   user_id : string
   products : IProductCart[];
 }
+
+
+
+export interface IAddressEntry extends Document{
+  _id:Types.ObjectId
+  address_name: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  phone: string;
+  addressType: 'billing' | 'shipping';
+}
+
+export interface IAddress extends Document {
+  email: string;
+  addresses: IAddressEntry[];
+}
