@@ -43,51 +43,59 @@ const PromoCodeController = {
 
   getPromoCodes: async (req: Request, res: Response) => {
     try {
-      const { code, amount } = req.query;
+      const { code, amount, page = 1, limit = 12, sortField = 'createdAt', sortOrder = 'desc' } = req.query;
 
-      if (!code || !amount) {
-        const promos = await PromoCode.find().sort({ createdAt: -1 });
-        return sendSuccessResponse(res, { promos }, "Promo codes retrieved successfully", 200);
+      if (code && amount) {
+        const promo = await PromoCode.findOne({ code: code.toString().toUpperCase() }) as IPromoCode;
+        if (!promo) {
+          return sendErrorResponse(res, {
+            message: "Promo code not found",
+            details: "Invalid promoCodeId",
+          }, 404);
+        }
+
+        if (promo.expiryDate && promo.expiryDate < new Date()) {
+          return sendErrorResponse(res, {
+            message: "Promo code expired.",
+            details: "Promo code cannot be applied",
+          }, 400);
+        }
+
+        const amt = parseFloat(amount as string);
+        if (isNaN(amt) || amt <= 0) {
+          return sendErrorResponse(res, {
+            message: "Invalid amount",
+            details: "Amount must be a positive number",
+          }, 400);
+        }
+
+        const discount = promo.type === "flat"
+          ? promo.amount
+          : (promo.amount / 100) * amt;
+
+        const finalAmount = Math.max(0, amt - discount);
+
+        return sendSuccessResponse(res, {
+          originalAmount: amt,
+          discount,
+          finalAmount,
+        }, "Promo code applied successfully", 200);
       }
 
-      const promo = await PromoCode.findOne({ code:code.toString().toUpperCase()}) as IPromoCode;
-      if (!promo) {
-        return sendErrorResponse(res, {
-          message: "Promo code not found",
-          details: "Invalid promoCodeId",
-        }, 404);
-      }
+      const skip = (Number(page) - 1) * Number(limit);
+      const total = await PromoCode.countDocuments();
+      const sortObj : any = {};
+      sortObj[sortField as string] = sortOrder === 'asc' ? 1 : -1;
 
-      if (promo.expiryDate && promo.expiryDate < new Date()) {
-        return sendErrorResponse(res, {
-          message: "Promo code expired.",
-          details: "Promo code cannot be applied",
-        }, 400);
-      }
-
-      const amt = parseFloat(amount as string);
-      if (isNaN(amt) || amt <= 0) {
-        return sendErrorResponse(res, {
-          message: "Invalid amount",
-          details: "Amount must be a positive number",
-        }, 400);
-      }
-
-      let discount = 0;
-      if (promo.type === "flat") {
-        discount = promo.amount;
-      } else if (promo.type === "percentage") {
-        discount = (promo.amount / 100) * amt;
-      }
-
-      const finalAmount = Math.max(0, amt - discount);
+      const promos = await PromoCode.find()
+        .sort(sortObj)
+        .skip(skip)
+        .limit(Number(limit));
 
       return sendSuccessResponse(res, {
-        originalAmount: amt,
-        discount,
-        finalAmount,
-      }, "Promo code applied successfully", 200);
-
+        promos,
+        total,
+      }, "Promo codes retrieved successfully", 200);
     } catch (error: any) {
       return sendErrorResponse(res, {
         message: "Failed to fetch or apply promo code",
