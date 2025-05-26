@@ -175,3 +175,12 @@ export interface IAddress extends Document {
   email: string;
   addresses: IAddressEntry[];
 }
+
+export interface IPromoCode extends Document {
+  code: string;
+  type: "flat" | "percentage";
+  amount: number;
+  expiryDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}

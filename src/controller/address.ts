@@ -1,8 +1,7 @@
-import { sendErrorResponse, sendSuccessResponse } from "../functions/product";
 import { Request, Response } from "express";
+import { sendErrorResponse, sendSuccessResponse } from "../functions/product";
 import { Address } from "../models";
 import { IAddressEntry, IRequestHandler } from "../types";
-import isEqual from "lodash/isEqual";
 
 const CartController: IRequestHandler = {
     getAddresses: async (req: Request, res: Response) => {
@@ -90,7 +89,7 @@ const CartController: IRequestHandler = {
         try {
             const { email, addresses } = req.body;
             console.log("body", addresses);
-            
+
 
             if (!email || !Array.isArray(addresses)) {
                 return sendErrorResponse(res, {
@@ -99,35 +98,47 @@ const CartController: IRequestHandler = {
                 }, 400);
             }
 
+            console.log("pass1");
             const existing = await Address.findOne({ email });
             console.log("pass1");
-            
-            
+
+            function areAddressesEqual(a: IAddressEntry, b: IAddressEntry) {
+                return (
+                    a.address === b.address &&
+                    a.city === b.city &&
+                    a.zip === b.zip &&
+                    a.country === b.country &&
+                    a.state === b.state &&
+                    a.addressType === b.addressType
+                );
+            }
+
+
             if (existing) {
                 const existingAddresses = existing.addresses;
 
                 const uniqueNewAddresses = addresses.filter(
                     (newAddr: IAddressEntry) =>
-                        !existingAddresses.some((existingAddr) => isEqual(existingAddr, newAddr))
+                        !existingAddresses.some((existingAddr) => areAddressesEqual(existingAddr, newAddr))
                 );
-                
+
                 console.log("pass2");
                 if (uniqueNewAddresses.length > 0) {
+                    console.log("if pass2", uniqueNewAddresses);
                     existing.addresses.push(...uniqueNewAddresses);
                     await existing.save();
                 }
                 console.log("pass2");
-                
+
                 return sendSuccessResponse(res, { addresses: existing.addresses }, 'Addresses updated successfully', 200);
             } else {
                 console.log("pass3");
                 const newAddress = new Address({ email, addresses });
                 await newAddress.save();
-                
+
                 console.log("pass3");
                 return sendSuccessResponse(res, { addresses: newAddress.addresses }, 'Addresses added successfully', 201);
             }
-            // console.log("pass3");
         } catch (error: any) {
             sendErrorResponse(res, {
                 message: "Failed to save/update addresses",

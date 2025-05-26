@@ -5,6 +5,7 @@ import categoryRoutes from './category';
 import reviewasRoutes from './reviews';
 import cartRoute from './cart'
 import AddresssRoute from './address'
+import PromocodeRoute from './promocode'
 
 const router = express.Router();
 
@@ -14,5 +15,6 @@ router.use('/category', categoryRoutes);
 router.use('/review', reviewasRoutes);
 router.use('/cart', cartRoute);
 router.use('/address', AddresssRoute);
+router.use('/promocode', PromocodeRoute);
 
 export default router;
