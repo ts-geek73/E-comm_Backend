@@ -177,6 +177,7 @@ export interface IAddress extends Document {
 }
 
 export interface IPromoCode extends Document {
+  stripeCouponId: string| null;
   code: string;
   type: "flat" | "percentage";
   amount: number;

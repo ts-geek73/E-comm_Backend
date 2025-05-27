@@ -6,60 +6,57 @@ export const createCheckoutSession = async (
     res: Response
 ): Promise<void> => {
     try {
-        const { products, totalPrice } = req.body.body;
+        const { products, finalPrice, coupons } = req.body.body;
 
-        if (!products) {
+        if (!products || !products.cart || !Array.isArray(products.cart)) {
             res.status(400).json({ message: 'Invalid products data' });
-            return
+            return 
         }
 
-        if (!totalPrice || totalPrice <= 0) {
-            res.status(400).json({ message: 'Invalid total price' });
-            return
-        }
-        console.log("pass 1");
-
-        const productLines = products.cart.map((item: any) => ({
+        const productLines = products.cart.map((item: {
+            name: string;
+            image: { url: string };
+            price: number;
+            qty: number;
+        }) => ({
             price_data: {
                 currency: 'inr',
                 product_data: {
                     name: item.name,
+                    images: [item.image.url],
                 },
-                unit_amount: item.price*100, 
+                unit_amount: item.price * 100,
             },
             quantity: item.qty,
         }));
 
-        // const totalLine = {
-        //     price_data: {
-        //         currency: 'inr',
-        //         product_data: {
-        //             name: 'Total',
-        //         },
-        //         unit_amount: Math.round(totalPrice * 100), // final price
-        //     },
-        //     quantity: 1,
-        // };
+        let discount: { coupon: string }[] = [];
+
+        if (finalPrice && finalPrice > 0) {
+            const discountAmount = products.totalPrice - finalPrice;
+
+            if (discountAmount > 0) {
+                const newCoupon = await stripe.coupons.create({
+                    amount_off: Math.round(discountAmount * 100), // Convert to paisa
+                    currency: 'inr',
+                    duration: 'once',
+                    name: 'Discount',
+                });
+
+                discount = [{ coupon: newCoupon.id }];
+            }
+        } else if (coupons?.length > 0) {
+            discount = [{ coupon: coupons[0] }];
+        }
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
-            line_items: [...productLines],
+            line_items: productLines,
             mode: 'payment',
+            discounts: discount,
             success_url: `${process.env.CLIENT_URL}/checkout/success`,
             cancel_url: `${process.env.CLIENT_URL}/checkout/fail`,
         });
-
-
-        // const session = await stripe.checkout.sessions.create({
-        //     payment_method_types: ['card'],
-        //     line_items: lineItems,
-        //     mode: 'payment',
-        //     success_url: `${process.env.CLIENT_URL}/checkout/success`,
-        //     cancel_url: `${process.env.CLIENT_URL}/checkout/fail`,
-        // });
-
-        console.log("pass 1");
-
 
         res.json({ session });
     } catch (error) {
@@ -67,6 +64,5 @@ export const createCheckoutSession = async (
         res.status(500).json({ message: 'Something went wrong' });
     }
 };
-
 
 export default createCheckoutSession;
