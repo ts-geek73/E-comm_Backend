@@ -6,11 +6,11 @@ export const createCheckoutSession = async (
     res: Response
 ): Promise<void> => {
     try {
-        const { products, finalPrice, coupons } = req.body.body;
+        const { products, finalPrice, email, coupons } = req.body.body;
 
         if (!products || !products.cart || !Array.isArray(products.cart)) {
             res.status(400).json({ message: 'Invalid products data' });
-            return 
+            return
         }
 
         const productLines = products.cart.map((item: {
@@ -54,8 +54,12 @@ export const createCheckoutSession = async (
             line_items: productLines,
             mode: 'payment',
             discounts: discount,
+            customer_email: email,
             success_url: `${process.env.CLIENT_URL}/checkout/success`,
             cancel_url: `${process.env.CLIENT_URL}/checkout/fail`,
+            metadata: {
+                coupons: coupons.join(",")  // ✅ Now a valid string
+            }
         });
 
         res.json({ session });
