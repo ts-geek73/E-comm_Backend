@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { sendErrorResponse, sendSuccessResponse } from '../functions/product';
-import { ShoppingCart , Image } from '../models';
+import { ShoppingCart, Image } from '../models';
 import { IRequestHandler } from '../types';
 import { getAbsoluteImageUrl } from '../functions/image';
 
@@ -16,49 +16,49 @@ const CartController: IRequestHandler = {
       });
 
       if (!cart || cart.products.length === 0) {
-        return sendErrorResponse(res, {
-          message: "Cart Error",
-          details: "Cart is empty.",
-        }, 404);
+        return sendSuccessResponse(res, {
+          cart: [], totalItems: 0, totalPrice: 0
+        }, "Cart is empty.", 200);
       }
 
       let totalItems = 0;
       let totalPrice = 0;
 
-            const normalizeImage = (img: any) => ({
-              ...img,
-              url: getAbsoluteImageUrl(req, img.url)
-            });
+      const normalizeImage = (img: any) => ({
+        ...img,
+        url: getAbsoluteImageUrl(req, img.url)
+      });
 
 
-            const cartItems = await Promise.all(cart.products.map(async (item) => {
-              const product = item.product_id as any;
-              const itemTotal = product.price * item.qty;
-              totalItems += item.qty;
-              totalPrice += itemTotal;
-        
-              let normalizedImage = null;
-              if (product.image) {
-                const imageDoc = await Image.findById(product.image);
-                if (imageDoc) {
-                  normalizedImage = normalizeImage(imageDoc);
-                }
-              }
-        
-              return {
-                
-                  _id: product._id,
-                  name: product.name,
-                  price: product.price,
-                  image: normalizedImage,
-                qty: item.qty,
-                notes: item.notes || "",
-                itemTotal,
-              };
-            }));
-        
+      const cartItems = await Promise.all(cart.products.map(async (item) => {
+        const product = item.product_id as any;
+        const itemTotal = product.price * item.qty;
+        totalItems += item.qty;
+        totalPrice += itemTotal;
+
+        let normalizedImage = null;
+        if (product.image) {
+          const imageDoc = await Image.findById(product.image);
+          if (imageDoc) {
+            normalizedImage = normalizeImage(imageDoc);
+          }
+        }
+
+        return {
+
+          _id: product._id,
+          name: product.name,
+          price: product.price,
+          image: normalizedImage,
+          qty: item.qty,
+          notes: item.notes || "",
+          itemTotal,
+        };
+      }));
+
       sendSuccessResponse(res, {
         cart: cartItems,
+        cartId: cart._id,
         totalItems,
         totalPrice,
       }, "Cart fetched successfully", 200);
@@ -74,17 +74,17 @@ const CartController: IRequestHandler = {
   updateCart: async (req: Request, res: Response) => {
     try {
       const { user_id, product } = req.body;
-      console.log("Update cart",product);
-      
+      console.log("Update cart", product);
+
 
       let cart = await ShoppingCart.findOne({ user_id });
-    const incomingProducts = Array.isArray(product) ? product : [product];
-      
+      const incomingProducts = Array.isArray(product) ? product : [product];
+
 
       if (!cart) {
-        cart = new ShoppingCart({ user_id, products : [product] });
+        cart = new ShoppingCart({ user_id, products: [product] });
       } else {
-        cart.products = [... cart.products ,...incomingProducts];
+        cart.products = [...cart.products, ...incomingProducts];
       }
 
       await cart.save();

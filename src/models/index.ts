@@ -16,3 +16,4 @@ export { default as Role } from "./role";
 export { default as ShoppingCart } from "./shoppingCart";
 export { default as Address } from "./Address";
 export { default as PromoCode } from "./promocode";
+export { default as Order } from "./Order";

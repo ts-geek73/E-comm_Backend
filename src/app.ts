@@ -3,8 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
-import routes from './routres';
 import path from 'path';
+import stripeController from './controller/stripe';
+import routes from './routres';
 
 dotenv.config();
 
@@ -26,17 +27,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// Fix the path - use process.cwd() to get the project root
 const uploadsPath = path.join(process.cwd(), 'public/uploads/products');
-console.log('Uploads path:', uploadsPath); // Debug log
 
 app.use(
   '/uploads/products',
   express.static(uploadsPath)
 );
 
+app.use('/payment/webhook',
+  express.raw({ type: 'application/json' }), 
+  stripeController.webhookCall
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 // Test endpoint to verify path
 app.get('/test-files', (req, res) => {

@@ -1,8 +1,8 @@
 import express from 'express';
-import createCheckoutSession from "../controller/stripe"
+import stripeController from '../controller/stripe';
 
 const router = express.Router();
 
-router.post('/create-checkout-session', createCheckoutSession);
+router.post('/create-checkout-session', stripeController.createCheckoutSession);
 
 export default router;

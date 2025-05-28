@@ -185,3 +185,13 @@ export interface IPromoCode extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface IOrder extends Document {
+  email: string;
+  items: IProductCart[];
+  amount: number;
+  shipping_address: Types.ObjectId;
+  session_id: string 
+  billing_address: Types.ObjectId;
+  status: 'pending' | 'paid' | 'failed' | 'shipped' | 'complete' | 'cancelled';
+}
