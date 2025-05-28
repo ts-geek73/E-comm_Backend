@@ -195,3 +195,8 @@ export interface IOrder extends Document {
   billing_address: Types.ObjectId;
   status: 'pending' | 'paid' | 'failed' | 'shipped' | 'complete' | 'cancelled';
 }
+
+export interface IWishlist extends Document {
+  user_id: Types.ObjectId;
+  products: Types.ObjectId[]; // array of product IDs
+}

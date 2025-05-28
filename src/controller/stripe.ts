@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import stripe from '../service/stripe';
 import { IOrder, IRequestHandler } from '../types';
 import Stripe from 'stripe';
-import { Order, ShoppingCart } from '../models';
+import { Order, PromoCode, ShoppingCart } from '../models';
 const endpointSecret = process.env.STRIPE_WEBHOOK_KEY;
 
 const stripeController: IRequestHandler = {
@@ -76,7 +76,7 @@ const stripeController: IRequestHandler = {
                 success_url: `${process.env.CLIENT_URL}/checkout/success?order=${newOrder._id}`,
                 cancel_url: `${process.env.CLIENT_URL}/checkout/fail`,
                 invoice_creation: {
-                    enabled: true, 
+                    enabled: true,
                 },
                 metadata: {
                     coupons: (coupons && coupons.length > 0) ? coupons.join(",") : "",
@@ -111,9 +111,6 @@ const stripeController: IRequestHandler = {
             res.status(500).send("Missing Stripe webhook secret");
             return;
         }
-
-
-
         let event;
 
         try {
@@ -136,6 +133,23 @@ const stripeController: IRequestHandler = {
                         console.warn("No metadata in session");
                         res.status(400).send("Missing metadata");
                         return
+                    }
+
+                    const discounts = session.discounts || [];
+
+                    for (const discount of discounts) {
+                        // discount.coupon can be string or Coupon
+                        if (typeof discount.coupon !== "string") {
+                            // Now you can safely access .name and .id
+                            if (discount.coupon && discount.coupon.name === "Discount") {
+                                try {
+                                    await stripe.coupons.del(discount.coupon.id);
+                                    console.log(`Deleted temporary coupon ${discount.coupon.id}`);
+                                } catch (err) {
+                                    console.error(`Failed to delete coupon ${discount.coupon.id}:`, err);
+                                }
+                            }
+                        }
                     }
 
                     const { billing, shipping, coupons, cartId, orderId } = metadata;
@@ -165,6 +179,71 @@ const stripeController: IRequestHandler = {
                 case "checkout.session.expired": {
                     const data = event.data.object
                     console.log("Webhook Trigger:=", event.type,);
+                    break;
+                }
+                case "coupon.created": {
+                    const coupon = event.data.object as Stripe.Coupon;
+
+                    console.log("Coupon created webhook:", coupon.id);
+
+                    // Map Stripe coupon to your PromoCode model
+                    const promoData = {
+                        code: coupon.name || coupon.id,
+                        type: coupon.amount_off ? "flat" : "percentage",
+                        amount: coupon.amount_off ? coupon.amount_off / 100 : coupon.percent_off || 0,
+                        expiryDate: coupon.redeem_by ? new Date(coupon.redeem_by * 1000) : null,
+                        stripeCouponId: coupon.id,
+                    };
+
+                    // Check if promo code already exists (prevent duplicates)
+                    const existingPromo = await PromoCode.findOne({ stripeCouponId: coupon.id });
+
+                    if (!existingPromo) {
+                        const newPromo = new PromoCode(promoData);
+                        await newPromo.save();
+                        console.log("Local promo code created from webhook:", newPromo.code);
+                    } else {
+                        console.log("Promo code with this Stripe coupon already exists:", coupon.id);
+                    }
+
+                    break;
+                }
+
+                case "coupon.updated": {
+                    const coupon = event.data.object as Stripe.Coupon;
+
+                    console.log("Coupon updated webhook:", coupon.id);
+
+                    const promo = await PromoCode.findOne({ stripeCouponId: coupon.id });
+
+                    if (promo) {
+                        promo.code = coupon.name || promo.code;
+                        promo.type = coupon.amount_off ? "flat" : "percentage";
+                        promo.amount = coupon.amount_off ? coupon.amount_off / 100 : coupon.percent_off || promo.amount;
+                        promo.expiryDate = coupon.redeem_by ? new Date(coupon.redeem_by * 1000) : undefined;
+
+                        await promo.save();
+                        console.log("Local promo code updated from webhook:", promo.code);
+                    } else {
+                        console.log("No local promo code found for updated Stripe coupon:", coupon.id);
+                    }
+
+                    break;
+                }
+
+                case "coupon.deleted": {
+                    const coupon = event.data.object as Stripe.Coupon;
+
+                    console.log("Coupon deleted webhook:", coupon.id);
+
+                    const promo = await PromoCode.findOne({ stripeCouponId: coupon.id });
+                    if (promo) {
+                        await PromoCode.deleteOne({ _id: promo._id });
+                        console.log("Local promo code deleted from webhook:", promo.code);
+                    } else {
+                        console.log("No local promo code found for deleted Stripe coupon:", coupon.id);
+                    }
+
                     break;
                 }
                 default:

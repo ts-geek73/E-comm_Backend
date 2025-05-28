@@ -7,7 +7,6 @@ const promoCodeSchema = new Schema<IPromoCode>(
     type: { type: String, enum: ["flat", "percentage"], required: true },
     amount: { type: Number, required: true, min: 0 },
     expiryDate: { type: Date },
-
     stripeCouponId: { type: String, default: null },
   },
   { timestamps: true }

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { sendErrorResponse, sendSuccessResponse } from "../functions/product";
 import { PromoCode } from "../models";
 import { IPromoCode } from "../types";
-import stripe from '../service/stripe'; // Your configured Stripe instance
+import stripe from '../service/stripe'; 
 
 const PromoCodeController = {
   createPromoCode: async (req: Request, res: Response) => {
@@ -24,36 +24,35 @@ const PromoCodeController = {
         }, 400);
       }
 
-      let stripeCoupon;
-      if (type === "flat") {
-        stripeCoupon = await stripe.coupons.create({
-          amount_off: Math.round(amount * 100),
-          currency: "inr",
-          duration: "forever",
-          name: code.toUpperCase().trim(),
-          redeem_by: expiryDate ? Math.floor(new Date(expiryDate).getTime() / 1000) : undefined,
-        });
-      } else if (type === "percentage") {
-        stripeCoupon = await stripe.coupons.create({
-          percent_off: amount,
-          duration: "forever",
-          name: code.toUpperCase().trim(),
-          redeem_by: expiryDate ? Math.floor(new Date(expiryDate).getTime() / 1000) : undefined,
-        });
-      } else {
-        return sendErrorResponse(res, {
-          message: "Validation Error",
-          details: "Invalid promo code type",
-        }, 400);
-      }
+      // let stripeCoupon;
+      // if (type === "flat") {
+      //   stripeCoupon = await stripe.coupons.create({
+      //     amount_off: Math.round(amount * 100),
+      //     currency: "inr",
+      //     duration: "forever",
+      //     name: code.toUpperCase().trim(),
+      //     redeem_by: expiryDate ? Math.floor(new Date(expiryDate).getTime() / 1000) : undefined,
+      //   });
+      // } else if (type === "percentage") {
+      //   stripeCoupon = await stripe.coupons.create({
+      //     percent_off: amount,
+      //     duration: "forever",
+      //     name: code.toUpperCase().trim(),
+      //     redeem_by: expiryDate ? Math.floor(new Date(expiryDate).getTime() / 1000) : undefined,
+      //   });
+      // } else {
+      //   return sendErrorResponse(res, {
+      //     message: "Validation Error",
+      //     details: "Invalid promo code type",
+      //   }, 400);
+      // }
 
-      // Save promo code in local DB with stripeCouponId for sync
       const promo = new PromoCode({
         code: code.toUpperCase().trim(),
         type,
         amount,
         expiryDate,
-        stripeCouponId: stripeCoupon.id, // store Stripe coupon ID
+        // stripeCouponId: stripeCoupon.id, // store Stripe coupon ID
       });
 
       await promo.save();

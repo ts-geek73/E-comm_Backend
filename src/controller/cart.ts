@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { sendErrorResponse, sendSuccessResponse } from '../functions/product';
 import { ShoppingCart, Image } from '../models';
-import { IRequestHandler } from '../types';
+import { IRequestHandler, IShoppingCart } from '../types';
 import { getAbsoluteImageUrl } from '../functions/image';
 
 const CartController: IRequestHandler = {
@@ -76,27 +76,48 @@ const CartController: IRequestHandler = {
       const { user_id, product } = req.body;
       console.log("Update cart", product);
 
-
-      let cart = await ShoppingCart.findOne({ user_id });
       const incomingProducts = Array.isArray(product) ? product : [product];
 
+      let cart = await ShoppingCart.findOne({ user_id }) as IShoppingCart
 
       if (!cart) {
-        cart = new ShoppingCart({ user_id, products: [product] });
+        // Cart doesn't exist: create new cart
+        cart = new ShoppingCart({ user_id, products: incomingProducts });
       } else {
-        cart.products = [...cart.products, ...incomingProducts];
+        // Cart exists: update or insert products
+        incomingProducts.forEach((incomingProduct) => {
+          const existingProduct = cart.products.find((p) =>
+            p.product_id.toString() === incomingProduct.product_id
+          );
+
+          if (existingProduct) {
+            // Update quantity
+            existingProduct.qty = incomingProduct.qty;
+            existingProduct.notes = incomingProduct.notes || existingProduct.notes;
+          } else {
+            // Add new product
+            cart.products.push(incomingProduct);
+          }
+        });
       }
+
+      console.log("cart products:=", cart.products);
 
       await cart.save();
       sendSuccessResponse(res, { cart }, "Cart updated successfully");
     } catch (error: any) {
       console.error("Cart update error:", error);
-      sendErrorResponse(res, {
-        message: "Failed to update the cart",
-        details: error.message,
-      }, 500);
+      sendErrorResponse(
+        res,
+        {
+          message: "Failed to update the cart",
+          details: error.message,
+        },
+        500
+      );
     }
   },
+
 
   removeItemfromCart: async (req: Request, res: Response) => {
     try {

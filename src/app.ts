@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import path from 'path';
 import stripeController from './controller/stripe';
 import routes from './routres';
+import bodyParser from 'body-parser';
 
 dotenv.config();
 
@@ -36,6 +37,8 @@ app.use(
 
 app.use('/payment/webhook',
   express.raw({ type: 'application/json' }), 
+  bodyParser.raw({type: "*/*"}),
+  bodyParser.json(),
   stripeController.webhookCall
 );
 
