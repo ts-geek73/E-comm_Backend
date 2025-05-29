@@ -1,7 +1,7 @@
+import dotenv from 'dotenv';
 import { Request, Response } from 'express';
 import { User } from '../models';
 import { UserData } from '../types';
-import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -75,6 +75,8 @@ const UserController = {
     }
   },
 
+
+
   protected: async (req: Request, res: Response) => {
     try {
       console.log("Protected APi ");
@@ -126,6 +128,7 @@ const UserController = {
       res.status(500).send('Internal Server Error');
     }
   },
+
 };
 
 export default UserController;

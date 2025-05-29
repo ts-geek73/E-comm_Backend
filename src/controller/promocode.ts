@@ -2,7 +2,9 @@ import { Request, Response } from "express";
 import { sendErrorResponse, sendSuccessResponse } from "../functions/product";
 import { PromoCode } from "../models";
 import { IPromoCode } from "../types";
-import stripe from '../service/stripe'; 
+import stripe from "../service/stripe";
+
+export let deleteStripeIds: string[];
 
 const PromoCodeController = {
   createPromoCode: async (req: Request, res: Response) => {
@@ -52,7 +54,7 @@ const PromoCodeController = {
         type,
         amount,
         expiryDate,
-        // stripeCouponId: stripeCoupon.id, // store Stripe coupon ID
+        // stripeCouponId: stripeCoupon.id, 
       });
 
       await promo.save();
@@ -83,7 +85,7 @@ const PromoCodeController = {
         }
 
         let totalDiscount: number = 0;
-        const discountData: { discount: number, code: string , stripeId:string }[] = [];
+        const discountData: { discount: number, code: string, stripeId: string }[] = [];
         const invalidPromoCodes: { code: string, reason: string }[] = [];
 
         codeList.forEach(code => {
@@ -106,7 +108,7 @@ const PromoCodeController = {
           totalDiscount += discount;
           discountData.push({
             discount, code,
-            stripeId: promo.stripeCouponId|| " "
+            stripeId: promo.stripeCouponId || " "
           });
         });
 
@@ -161,34 +163,18 @@ const PromoCodeController = {
         }, 404);
       }
 
-      const shouldReplaceCoupon =
-        updateData.amount !== undefined && updateData.amount !== existingPromo.amount ||
-        updateData.type !== undefined && updateData.type !== existingPromo.type;
+      const shouldResetStripeId =
+        (updateData.amount !== undefined && updateData.amount !== existingPromo.amount) ||
+        (updateData.type !== undefined && updateData.type !== existingPromo.type);
 
-      let newStripeCouponId = existingPromo.stripeCouponId;
-
-      if (shouldReplaceCoupon && existingPromo.stripeCouponId) {
-        // Delete old coupon
-        await stripe.coupons.del(existingPromo.stripeCouponId);
-
-        // Create new coupon
-        const newCoupon = await stripe.coupons.create({
-          name: updateData.code || existingPromo.code,
-          duration: 'once',
-          percent_off: updateData.type === 'percentage' ? updateData.amount : undefined,
-          amount_off: updateData.type === 'flat' ? Math.round(updateData.amount * 100) : undefined,
-          currency: updateData.type === 'flat' ? 'inr' : undefined,
-        });
-
-        newStripeCouponId = newCoupon.id;
+      // If amount or type changed, clear the stripeCouponId so cron job will recreate it
+      if (shouldResetStripeId) {
+        updateData.stripeCouponId = null;
       }
 
       const updated = await PromoCode.findByIdAndUpdate(
         id,
-        {
-          ...updateData,
-          stripeCouponId: newStripeCouponId,
-        },
+        updateData,
         { new: true }
       );
 
@@ -213,7 +199,6 @@ const PromoCodeController = {
     try {
       const { id } = req.params;
 
-      // Find promo to get stripeCouponId
       const promoToDelete = await PromoCode.findById(id);
       if (!promoToDelete) {
         return sendErrorResponse(res, {
@@ -226,6 +211,8 @@ const PromoCodeController = {
       if (promoToDelete.stripeCouponId) {
         await stripe.coupons.del(promoToDelete.stripeCouponId);
       }
+
+      // deleteStripeIds.push(promoToDelete.stripeCouponId as string)
 
       const deleted = await PromoCode.findByIdAndDelete(id);
       if (!deleted) {

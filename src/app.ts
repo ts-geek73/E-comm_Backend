@@ -7,6 +7,7 @@ import path from 'path';
 import stripeController from './controller/stripe';
 import routes from './routres';
 import bodyParser from 'body-parser';
+import { startCronJobs } from './service/cron_job';
 
 dotenv.config();
 
@@ -78,6 +79,7 @@ const connectDB = async () => {
     app.use('/', routes);
 
     app.listen(port, () => {
+      startCronJobs();
       console.log(`App running on port ${port}`);
     });
   } catch (err) {

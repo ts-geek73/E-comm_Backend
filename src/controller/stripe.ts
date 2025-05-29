@@ -186,7 +186,6 @@ const stripeController: IRequestHandler = {
 
                     console.log("Coupon created webhook:", coupon.id);
 
-                    // Map Stripe coupon to your PromoCode model
                     const promoData = {
                         code: coupon.name || coupon.id,
                         type: coupon.amount_off ? "flat" : "percentage",
@@ -195,7 +194,6 @@ const stripeController: IRequestHandler = {
                         stripeCouponId: coupon.id,
                     };
 
-                    // Check if promo code already exists (prevent duplicates)
                     const existingPromo = await PromoCode.findOne({ stripeCouponId: coupon.id });
 
                     if (!existingPromo) {
