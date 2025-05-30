@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { ReviewsController } from '../controller/reviews';
 import { upload } from '../service/multer';
+import { ReviewsController } from '../controller';
 
 const router = Router();
 

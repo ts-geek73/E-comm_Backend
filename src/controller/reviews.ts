@@ -4,7 +4,7 @@ import { findOrCreateImage, getAbsoluteImageUrl, removeImageFile } from '../func
 import { Product, Review, ReviewImages, User } from '../models';
 import { IImage, IRequestHandler as IProductRequestHandler, IReviewImages } from '../types';
 
-export const ReviewsController: IProductRequestHandler = {
+const ReviewsController: IProductRequestHandler = {
    createProductReview: async (req: Request, res: Response): Promise<void> => {
       try {
          console.log("Create Product Review API");
@@ -285,3 +285,5 @@ export const ReviewsController: IProductRequestHandler = {
       }
    }
 };
+
+export default ReviewsController

@@ -3,7 +3,7 @@ import { User } from "../models";
 import Wishlist from "../models/whishlist";
 import { Request, Response } from 'express';
 
-export const whishListController = {
+const whishListController = {
     getWhishList: async (req: Request, res: Response) => {
         try {
             console.log("whishList APi ");
@@ -111,3 +111,5 @@ export const whishListController = {
     },
 
 }
+
+export default whishListController

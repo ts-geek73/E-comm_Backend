@@ -1,15 +1,13 @@
 import { Router } from 'express';
-import productController from '../controller/product';
-import { IRequestHandler } from '../types';
-import { upload } from '../service/multer';
+import { productController } from '../controller';
 import { productIdValidation, productValidationRules, validate } from '../middleware/productValidation';
+import { upload } from '../service/multer';
 
 const router = Router();
-const typedProductController = productController as IRequestHandler;
 
-router.get('/', typedProductController.getProducts);
-router.get('/combos', typedProductController.getBrandsAndCategories);
-router.get('/:id', productIdValidation, validate, typedProductController.getProductById);
+router.get('/', productController.getProducts);
+router.get('/combos', productController.getBrandsAndCategories);
+router.get('/:id', productIdValidation, validate, productController.getProductById);
 
 // POST requests
 router.post(
@@ -17,7 +15,7 @@ router.post(
   upload.array('imageFiles', 12),
   productValidationRules,
   validate,
-  typedProductController.createProduct
+  productController.createProduct
 );
 
 // PUT requests
@@ -27,7 +25,7 @@ router.put(
   productIdValidation,
   productValidationRules,
   validate,
-  typedProductController.updateProduct
+  productController.updateProduct
 );
 
 // DELETE requests
@@ -35,7 +33,7 @@ router.delete(
   '/:id', 
   productIdValidation, 
   validate, 
-  typedProductController.deleteProduct
+  productController.deleteProduct
 );
 
 export default router;

@@ -2,7 +2,8 @@ import { Types } from "mongoose";
 import { Request, Response } from 'express';
 import Image from '../models/Image';
 import { ErrorResponse, IResponseData } from "../types";
-import { Brand, ProductBrand, Category, ProductImage, ProductCategory } from "../models"
+import { Brand, ProductBrand, Category, ProductImage, ProductCategory, Product } from "../models"
+import { getAbsoluteImageUrl } from "./image";
 
 const sendSuccessResponse = <T>(res: Response, data: T, message: string = 'Success', statusCode: number = 200): void => {
   const responseData: IResponseData<T> = {
@@ -193,3 +194,27 @@ export const formateDate = (date: Date) => {
 
   return formatted
 } 
+
+export const getProductDetails = async (productId: Types.ObjectId, req?: Request) => {
+  const product = await Product.findById(productId).select('name price image');
+  if (!product) return null;
+
+  let normalizedImage = null;
+
+  if (product.image) {
+    const imageDoc = await Image.findById(product.image);
+    if (imageDoc && req) {
+      normalizedImage = {
+        ...imageDoc.toObject(),
+        url: getAbsoluteImageUrl(req, imageDoc.url),
+      };
+    }
+  }
+
+  return {
+    _id: product._id,
+    name: product.name,
+    price: product.price,
+    image: normalizedImage,
+  };
+};

@@ -74,9 +74,6 @@ const UserController = {
       res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   },
-
-
-
   protected: async (req: Request, res: Response) => {
     try {
       console.log("Protected APi ");

@@ -1,5 +1,5 @@
 import express from 'express';
-import stripeController from '../controller/stripe';
+import { stripeController } from '../controller';
 
 const router = express.Router();
 

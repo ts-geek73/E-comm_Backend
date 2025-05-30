@@ -196,6 +196,14 @@ export interface IOrder extends Document {
   status: 'pending' | 'paid' | 'failed' | 'shipped' | 'complete' | 'cancelled';
 }
 
+export interface IUserInvoice extends Document {
+  email: string;
+  invoices: {
+    orderId : Types.ObjectId,
+    invoice : string,
+  }[];
+}
+
 export interface IWishlist extends Document {
   user_id: Types.ObjectId;
   products: Types.ObjectId[]; // array of product IDs
