@@ -7,7 +7,7 @@ const userSchema = new Schema<IUser>({
   userId: { type: String, required: true },
   name: { type: String, required: true },
   email: { type: String, required: true },
-  roles_id: [{ type: Array(Schema.Types.ObjectId), ref: "Role" }],
+  roles_id: { type: Array(Schema.Types.ObjectId), ref: "Role" },
 });
 
 

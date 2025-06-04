@@ -3,7 +3,7 @@ import { OrderController } from '../controller';
 
 const router = express.Router();
 
-router.get('/invoice', OrderController.dataFunction);
+router.get('/invoice', OrderController.getOrderAndInvoiceFunction);
 
 // router.post('/invoice/sync',  async (req, res) => {
 //   const result = await OrderController.syncStripeInvoices();

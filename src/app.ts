@@ -8,20 +8,27 @@ import stripeController from './controller/stripe';
 import routes from './routres';
 import bodyParser from 'body-parser';
 import { startCronJobs } from './service/cron_job';
+import fs from 'fs';
+import https from 'https'
 
 dotenv.config();
 
 const port = process.env.PORT || 5000;
 const uri = process.env.MONGO_URL;
 
+const options = {
+  key: fs.readFileSync(path.join(__dirname, '../key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, '../cert.pem')),
+};
+
 const app = express();
 
 app.use(cors({
-    origin: [
+  origin: [
     process.env.NGROK_URL!,
     process.env.CLIENT_URL!
   ],
-   credentials: true
+  credentials: true
 }));
 
 app.use((req, res, next) => {
@@ -37,8 +44,8 @@ app.use(
 );
 
 app.use('/payment/webhook',
-  express.raw({ type: 'application/json' }), 
-  bodyParser.raw({type: "*/*"}),
+  express.raw({ type: 'application/json' }),
+  bodyParser.raw({ type: "*/*" }),
   bodyParser.json(),
   stripeController.webhookCall
 );
@@ -54,7 +61,7 @@ app.get('/test-files', (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Cannot read directory', details: err, path: uploadsPath });
     }
-    res.json({ 
+    res.json({
       directory: uploadsPath,
       files: files,
       exists: fs.existsSync(uploadsPath)
@@ -75,12 +82,17 @@ const connectDB = async () => {
     app.get('/protected-endpoint', ClerkExpressWithAuth(), (req, res) => {
       res.json(req);
     });
-    
+
     app.use('/', routes);
 
-    app.listen(port, () => {
-      startCronJobs();
-      console.log(`App running on port ${port}`);
+    // app.listen(port, () => {
+    //   startCronJobs();
+    //   console.log(`App running on port ${port}`);
+    // });
+
+    https.createServer(options, app).listen(5000, () => {
+      startCronJobs()
+      console.log('HTTPS server running on 5000');
     });
   } catch (err) {
     console.error('Mongoose connection error:', err);

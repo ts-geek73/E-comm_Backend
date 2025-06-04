@@ -9,3 +9,6 @@ export { default as ReviewsController } from "./reviews";
 export { default as stripeController } from "./stripe";
 export { default as UserController } from "./user";
 export { default as whishListController } from "./whichlist";
+export { default as RoleController } from "./role";
+export { default as PermissionController } from "./permission";
+export { default as UserRoleController } from "./user-role";

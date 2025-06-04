@@ -22,7 +22,10 @@ db/
 brand.json
 fake.json
 image.json
-fake copy.json
+fake copy.
+
+cert.pem
+key.pem
 
 # IDEs and Editors
 .vscode/
