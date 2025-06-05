@@ -12,7 +12,7 @@ router.delete('/roles/:id', RoleController.deleteRole);
 // ================== ROLE-PERMISSION ROUTES ==================
 router.post('/roles/:id/permissions', RoleController.assignPermissionsToRole);
 router.get('/roles/:id/permissions', RoleController.getRolePermissions);
-router.delete('/roles/:id/permissions/:permissionId', RoleController.removePermissionFromRole);
+// router.delete('/roles/:id/permissions/:permissionId', RoleController.removePermissionFromRole);
 
 // ================== PERMISSION ROUTES ==================
 router.post('/permissions', PermissionController.createPermission);
@@ -22,8 +22,7 @@ router.delete('/permissions/:id', PermissionController.deletePermission);
 
 // ================== USER-ROLE ROUTES ==================
 router.post('/users/:userId/roles', UserRoleController.assignRolesToUser);
-router.get('/users/:userId/roles', UserRoleController.getUserRoles);
-router.get('/users/:userId/permissions', UserRoleController.getUserPermissions);
+router.get('/users', UserRoleController.getUserAccessDetails);
 router.delete('/users/:userId/roles/:roleId', UserRoleController.removeRoleFromUser);
 
 export default router;

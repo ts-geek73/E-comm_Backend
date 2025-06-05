@@ -8,6 +8,8 @@ const PermissionController = {
   createPermission: async (req: Request, res: Response) => {
     try {
       const { name, key, description } = req.body;
+      console.log(`Create a new permission`);
+      
 
       if (!name || !key) {
         return sendErrorResponse(res, {
@@ -52,6 +54,8 @@ const PermissionController = {
   getPermissions: async (req: Request, res: Response) => {
     try {
       const { page = 1, limit = 10, sortField = 'createdAt', sortOrder = 'desc' } = req.query;
+      console.log(`Get all permissions`);
+      
 
       const skip = (Number(page) - 1) * Number(limit);
       const total = await Permission.countDocuments();
@@ -81,6 +85,8 @@ const PermissionController = {
     try {
       const { id } = req.params;
       const { name, key, description } = req.body;
+      console.log(`Update a permission`);
+      
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return sendErrorResponse(res, {
@@ -143,6 +149,8 @@ const PermissionController = {
   deletePermission: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      console.log('Delete a permission');
+      
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return sendErrorResponse(res, {

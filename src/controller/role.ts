@@ -8,6 +8,8 @@ const RoleController = {
   createRole: async (req: Request, res: Response) => {
     try {
       const { name, description } = req.body;
+      console.log(`Create role wiht ${name} `);
+      
 
       if (!name) {
         return sendErrorResponse(res, {
@@ -45,10 +47,13 @@ const RoleController = {
   getRoles: async (req: Request, res: Response) => {
     try {
       const { page = 1, limit = 10, sortField = 'createdAt', sortOrder = 'desc' } = req.query;
+            console.log(`getRoles `);
+
 
       const skip = (Number(page) - 1) * Number(limit);
       const total = await Role.countDocuments();
       const sortObj: any = { [sortField as string]: sortOrder === 'asc' ? 1 : -1 };
+      
 
       const roles = await Role.find()
         .sort(sortObj)
@@ -74,6 +79,9 @@ const RoleController = {
     try {
       const { id } = req.params;
       const { name, description } = req.body;
+
+      console.log(`Update Role`);
+      
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return sendErrorResponse(res, {
@@ -112,6 +120,8 @@ const RoleController = {
   deleteRole: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      console.log("Delete role with ",id);
+      
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return sendErrorResponse(res, {
@@ -149,6 +159,9 @@ const RoleController = {
     try {
       const { id } = req.params;
       const { permissionIds } = req.body;
+
+      console.log(`Assign permissions to a role`);
+      
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return sendErrorResponse(res, {
@@ -211,6 +224,8 @@ const RoleController = {
   getRolePermissions: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      console.log(`Get role permissions`);
+      
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return sendErrorResponse(res, {
@@ -238,37 +253,39 @@ const RoleController = {
   },
 
   // Remove permission from role
-  removePermissionFromRole: async (req: Request, res: Response) => {
-    try {
-      const { id, permissionId } = req.params;
+  // removePermissionFromRole: async (req: Request, res: Response) => {
+  //   try {
+  //     const { id, permissionId } = req.params;
+  //     console.log(`Remove permission from role`);
+      
 
-      if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(permissionId)) {
-        return sendErrorResponse(res, {
-          message: "Invalid ID",
-          details: "Invalid role or permission ID format",
-        }, 400);
-      }
+  //     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(permissionId)) {
+  //       return sendErrorResponse(res, {
+  //         message: "Invalid ID",
+  //         details: "Invalid role or permission ID format",
+  //       }, 400);
+  //     }
 
-      const deleted = await RolePermission.findOneAndDelete({
-        role_id: id,
-        permission_id: permissionId,
-      });
+  //     const deleted = await RolePermission.findOneAndDelete({
+  //       role_id: id,
+  //       permission_id: permissionId,
+  //     });
 
-      if (!deleted) {
-        return sendErrorResponse(res, {
-          message: "Not Found",
-          details: "Role permission not found",
-        }, 404);
-      }
+  //     if (!deleted) {
+  //       return sendErrorResponse(res, {
+  //         message: "Not Found",
+  //         details: "Role permission not found",
+  //       }, 404);
+  //     }
 
-      return sendSuccessResponse(res, {}, "Permission removed from role successfully", 200);
-    } catch (error: any) {
-      return sendErrorResponse(res, {
-        message: "Failed to remove permission from role",
-        details: error.message,
-      }, 500);
-    }
-  },
+  //     return sendSuccessResponse(res, {}, "Permission removed from role successfully", 200);
+  //   } catch (error: any) {
+  //     return sendErrorResponse(res, {
+  //       message: "Failed to remove permission from role",
+  //       details: error.message,
+  //     }, 500);
+  //   }
+  // },
 };
 
 export default RoleController;

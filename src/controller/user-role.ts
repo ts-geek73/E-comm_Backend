@@ -1,13 +1,14 @@
 import { Request, Response } from "express";
 import { sendErrorResponse, sendSuccessResponse } from "../functions/product";
-import { User, Role, Permission, RolePermission } from "../models";
-import mongoose from "mongoose";
+import { Role, RolePermission, User } from "../models";
 
 const UserRoleController = {
   assignRolesToUser: async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
       const { roleIds } = req.body;
+      console.log(`assign Roles To User`);
+
 
       if (!userId) {
         return sendErrorResponse(res, {
@@ -33,23 +34,23 @@ const UserRoleController = {
 
       // Validate role IDs
       const validRoles = await Role.find({ _id: { $in: roleIds } });
-      console.log("Valid:=",validRoles);
-      
+      console.log("Valid:=", validRoles);
+
       if (validRoles.length !== roleIds.length) {
         console.log("dfail hetre");
-        
+
         return sendErrorResponse(res, {
           message: "Validation Error",
           details: "Some role IDs are invalid",
         }, 400);
       }
       console.log("roleIds:=", roleIds);
-      
+
 
       user.roles_id = roleIds;
-      console.log('User RoleId:=',user.roles_id);
+      console.log('User RoleId:=', user.roles_id);
       await user.save();
-      
+
 
       const updatedUser = await User.findOne({ userId }).populate('roles_id', 'name description');
 
@@ -65,11 +66,65 @@ const UserRoleController = {
     }
   },
 
-  getUserRoles: async (req: Request, res: Response) => {
+  getUserAccessDetails: async (req: Request, res: Response) => {
     try {
-      const { userId } = req.params;
+      const { userId } = req.query;
 
-      const user = await User.findOne({ userId }).populate('roles_id', 'name description');
+      const includeRoles = true;
+
+      // If no userId is provided, fetch all users
+      if (!userId) {
+        console.log(`Fetching access details for all users`);
+
+        // Fetch all users with roles if requested
+        const users = includeRoles
+          ? await User.find().populate({ path: 'roles_id', select: 'name description' })
+          : await User.find();
+
+        // Build response for each user
+        const usersResponse = await Promise.all(users.map(async (user: any) => {
+          const userData: any = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            userId: user.userId,
+          };
+
+          if (includeRoles) {
+            userData.roles = user.roles_id;
+          }
+
+            const roleIds = user.roles_id?.map((role: any) => role._id);
+
+            const rolePermissions = await RolePermission.find({
+              role_id: { $in: roleIds }
+            }).populate('permission_id', 'name key description');
+
+            const permissionsMap = new Map();
+            rolePermissions.forEach(rp => {
+              const permission = rp.permission_id as any;
+              if (permission && !permissionsMap.has(permission._id.toString())) {
+                permissionsMap.set(permission._id.toString(), permission);
+              }
+            });
+
+            const permissionsList = Array.from(permissionsMap.values());
+            userData.permissions = permissionsList;
+          
+
+          return userData;
+        }));
+
+        return sendSuccessResponse(res, { users: usersResponse }, "All user access details retrieved successfully", 200);
+      }
+
+      // If userId is provided, fetch specific user
+      console.log(`Fetching access details for userId: ${userId}`);
+
+      const user = includeRoles
+        ? await User.findOne({ userId }).populate({ path: 'roles_id', select: 'name description' })
+        : await User.findOne({ userId });
+
       if (!user) {
         return sendErrorResponse(res, {
           message: "Not Found",
@@ -77,70 +132,53 @@ const UserRoleController = {
         }, 404);
       }
 
-      return sendSuccessResponse(res, {
+      const responseData: any = {
         user: {
           _id: user._id,
           name: user.name,
           email: user.email,
-          roles: user.roles_id,
-        },
-      }, "User roles retrieved successfully", 200);
-    } catch (error: any) {
-      return sendErrorResponse(res, {
-        message: "Failed to fetch user roles",
-        details: error.message,
-      }, 500);
-    }
-  },
-
-  getUserPermissions: async (req: Request, res: Response) => {
-    try {
-      const { userId } = req.params;
-
-      const user = await User.findOne({ userId }).populate('roles_id');
-      if (!user) {
-        return sendErrorResponse(res, {
-          message: "Not Found",
-          details: "User not found",
-        }, 404);
-      }
-
-      const roleIds = user.roles_id && user.roles_id.map((role: any) => role._id);
-
-      const rolePermissions = await RolePermission.find({
-        role_id: { $in: roleIds }
-      }).populate('permission_id', 'name key description');
-
-      const permissionsMap = new Map();
-      rolePermissions.forEach(rp => {
-        const permission = rp.permission_id as any;
-        if (permission && !permissionsMap.has(permission._id.toString())) {
-          permissionsMap.set(permission._id.toString(), permission);
         }
-      });
+      };
 
-      const permissions = Array.from(permissionsMap.values());
+      if (includeRoles) {
+        responseData.user.roles = user.roles_id;
+      }
 
-      return sendSuccessResponse(res, {
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-        },
-        permissions,
-        permissionKeys: permissions.map(p => p.key),
-      }, "User permissions retrieved successfully", 200);
+        const roleIds = user.roles_id?.map((role: any) => role._id);
+
+        const rolePermissions = await RolePermission.find({
+          role_id: { $in: roleIds }
+        }).populate('permission_id', 'name key description');
+
+        const permissionsMap = new Map();
+        rolePermissions.forEach(rp => {
+          const permission = rp.permission_id as any;
+          if (permission && !permissionsMap.has(permission._id.toString())) {
+            permissionsMap.set(permission._id.toString(), permission);
+          }
+        });
+
+        const permissionsList = Array.from(permissionsMap.values());
+        responseData.permissions = permissionsList;
+        responseData.permissionKeys = permissionsList.map(p => p.key);
+      
+
+      return sendSuccessResponse(res, responseData, "User access details retrieved successfully", 200);
+
     } catch (error: any) {
       return sendErrorResponse(res, {
-        message: "Failed to fetch user permissions",
+        message: "Failed to fetch user access details",
         details: error.message,
       }, 500);
     }
   },
+
 
   removeRoleFromUser: async (req: Request, res: Response) => {
     try {
       const { userId, roleId } = req.params;
+      console.log(`remove Role From User`);
+
 
       const user = await User.findOne({ userId });
       if (!user) {
