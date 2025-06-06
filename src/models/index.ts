@@ -1,4 +1,3 @@
-// Default exports: Mongoose models
 export { default as Brand } from "./brand";
 export { default as ProductBrand } from "./product-brand";
 export { default as ProductImage } from "./product-image";
@@ -18,3 +17,4 @@ export { default as Address } from "./Address";
 export { default as PromoCode } from "./promocode";
 export { default as Order } from "./Order";
 export { default as UserInvoice } from "./user-invoice";
+export { default as OTP } from "./otp";
