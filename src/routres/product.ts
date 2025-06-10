@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { productController } from '../controller';
-import { productIdValidation, productValidationRules, validate } from '../middleware/productValidation';
+import { productIdValidation, productValidationRules, userIdAndPermissionValidate, validate } from '../middleware/productValidation';
 import { upload } from '../service/multer';
 
 const router = Router();
@@ -12,6 +12,7 @@ router.get('/:id', productIdValidation, validate, productController.getProductBy
 // POST requests
 router.post(
   '/create', 
+  // userIdAndPermissionValidate('product.create'),
   upload.array('imageFiles', 12),
   productValidationRules,
   validate,
@@ -21,6 +22,7 @@ router.post(
 // PUT requests
 router.put(
   '/update/:id', 
+  // userIdAndPermissionValidate('product.update'),
   upload.array('imageFiles', 12),
   productIdValidation,
   productValidationRules,
@@ -31,6 +33,7 @@ router.put(
 // DELETE requests
 router.delete(
   '/:id', 
+  // userIdAndPermissionValidate('product.delete'),
   productIdValidation, 
   validate, 
   productController.deleteProduct

@@ -34,7 +34,6 @@ const UserRoleController = {
 
       // Validate role IDs
       const validRoles = await Role.find({ _id: { $in: roleIds } });
-      console.log("Valid:=", validRoles);
 
       if (validRoles.length !== roleIds.length) {
         console.log("dfail hetre");

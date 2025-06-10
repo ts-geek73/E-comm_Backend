@@ -22,7 +22,12 @@ import path from 'path';
 const productController: IRequestHandler = {
   createProduct: async (req: Request, res: Response): Promise<void> => {
     try {
-      console.log('Backend Product create');
+      console.log('Backend Product create', req.body);
+
+      const files = req.files as Express.Multer.File[];
+      const images = files.map(file => ({ 'url': `/uploads/products/${file.filename}` }));
+      req.body.imageUrls = images;
+
       const {
         name,
         long_description,
@@ -32,13 +37,16 @@ const productController: IRequestHandler = {
         brands,
         rating = 0,
         features,
-        categories,
         imageUrls,
+        categories,
       } = req.body;
+
+      console.log(req.body);
+
 
       const requiredFields = ['name', 'status', 'short_description', 'long_description', 'price', 'categories', 'imageUrls'];
       const missingField = validateRequiredFields(req.body, requiredFields);
-      if (missingField) return sendErrorResponse(res, missingField);
+      if (missingField) return sendErrorResponse(res, missingField,400);
 
       const priceValue = parseFloat(price);
       const ratingValue = parseFloat(rating);
@@ -229,17 +237,18 @@ const productController: IRequestHandler = {
           name: { $not: { $regex: search, $options: 'i' } },
         }).limit(10).populate('image', 'url name');
 
-        const relatedFullProducts = await Promise.all(relatedProducts.map(async (product) => {
-          const brandRel = await ProductBrand.findOne({ productId: product._id }).populate({
-            path: 'brands',
-            populate: { path: 'logo', select: 'url name' },
-          });
-          return {
-            ...product.toObject(),
-            image: product.image ? normalizeImage(product.image) : undefined,
-            brands: brandRel?.brands || [],
-          };
-        }));
+        const relatedFullProducts = relatedProducts.length > 0 ?
+          await Promise.all(relatedProducts.map(async (product) => {
+            const brandRel = await ProductBrand.findOne({ productId: product._id }).populate({
+              path: 'brands',
+              populate: { path: 'logo', select: 'url name' },
+            });
+            return {
+              ...product.toObject(),
+              image: product.image ? normalizeImage(product.image) : undefined,
+              brands: brandRel?.brands || [],
+            };
+          })) : [];
 
         console.log("pass 4");
 
@@ -380,6 +389,10 @@ const productController: IRequestHandler = {
     try {
       console.log("Update Product");
 
+      const files = req.body.imageFiles as Express.Multer.File[];
+      const images = files ? files.map(file => ({ 'url': `/uploads/products/${file.filename}` })) : [];
+      req.body.imageUrls = images;
+
       const { id } = req.params;
       if (!Types.ObjectId.isValid(id)) {
         return sendErrorResponse(res, { message: 'Invalid product ID', field: 'id' });
@@ -401,27 +414,33 @@ const productController: IRequestHandler = {
 
       console.log("Body", req.body);
 
-
       if (imageUrls !== undefined && !Array.isArray(imageUrls)) {
         return sendErrorResponse(res, { message: 'imageUrls must be an array', field: 'imageUrls' });
       }
 
+      // Build updates object with conditional fields
       const updates: Partial<IProduct> = {
         ...(name && { name }),
         ...(status && { status }),
         ...(long_description && { long_description }),
         ...(short_description && { short_description }),
         ...(price && { price: parseFloat(price) }),
+        // Preserve existing image if no new images provided
+        image: product.image
       };
 
-      if (imageUrls?.length) {
+      // Only update image if new images are provided
+      if (imageUrls && imageUrls.length > 0) {
+        console.log(updates);
         const mainImageId = await findOrCreateImage(imageUrls[0], `Image for ${name || product.name}`);
         updates.image = mainImageId;
       }
 
+      // Apply updates to the product
       Object.assign(product, updates);
       await product.save();
 
+      // Handle related data only if provided
       if (imageUrls?.length) await handleProductImages(product._id, imageUrls, product.name);
       if (brands?.length) await handleProductBrands(product._id, brands);
       if (categories?.length) await handleProductCategories(product._id, categories);

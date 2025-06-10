@@ -35,8 +35,8 @@ const validateRequiredFields = (fields: Record<string, any>, requiredFields: str
   for (const field of requiredFields) {
     if (fields[field] === undefined || fields[field] === null || fields[field] === '') {
       return {
-        message: 'Missing required field',
         field,
+        message: `Missing ${field} required field`,
         details: `The ${field} field is required`
       };
     }

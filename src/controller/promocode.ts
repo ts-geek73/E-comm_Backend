@@ -145,11 +145,11 @@ const PromoCodeController = {
       }, 500);
     }
   },
-
   updatePromoCode: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const updateData = req.body;
+
 
       if (updateData.code) {
         updateData.code = updateData.code.toUpperCase().trim();
@@ -193,8 +193,6 @@ const PromoCodeController = {
       }, 500);
     }
   },
-
-
   deletePromoCode: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

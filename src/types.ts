@@ -132,8 +132,7 @@ export interface IPermission extends Document {
   description?: string;
 }
 
-export interface IProductReview{
-  _id?: Types.ObjectId;
+export interface IProductReview extends Document{
   product_id : Types.ObjectId 
   user_id : string 
   rate: number

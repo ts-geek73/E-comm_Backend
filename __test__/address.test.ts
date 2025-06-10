@@ -26,7 +26,7 @@ app.get('/address', CartController.getAddresses);
 app.delete('/address', CartController.deleteAddress);
 app.post('/address', CartController.saveOrUpdateAddresses);
 
-describe.skip('CartController', () => {
+describe.skip('Address Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

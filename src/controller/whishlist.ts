@@ -1,6 +1,5 @@
 import { sendErrorResponse, sendSuccessResponse } from "../functions/product";
-import { User } from "../models";
-import Wishlist from "../models/whishlist";
+import { User, WhishList } from "../models";
 import { Request, Response } from 'express';
 
 const whishListController = {
@@ -14,10 +13,16 @@ const whishListController = {
                     message: "user_id is required"
                 }, 400)
             }
-
+            
             const user = await User.findOne({ userId: user_id })
+            if(!user?._id){
+                return sendErrorResponse(res, {
+                    message: "User Not Found",
+                    details : JSON.stringify(user)
+                }, 404)
+            }
 
-            const wishlist = await Wishlist.findOne({ user_id: user?._id }).lean();
+            const wishlist = await WhishList.findOne({ user_id: user?._id }).lean();
             const productIds = wishlist?.products || [];
             return sendSuccessResponse(res, { productIds }, "send the whishlist products", 200)
         } catch (error) {
@@ -36,11 +41,11 @@ const whishListController = {
                 return sendErrorResponse(res, { message: "user_id is required" }, 400);
             }
             const user = await User.findOne({ userId: user_id })
-            const wishlist = await Wishlist.findOne({ user_id: user?._id });
+            const wishlist = await WhishList.findOne({ user_id: user?._id });
 
             // If wishlist doesn't exist, create it with the products
             if (!wishlist) {
-                const newWishlist = await Wishlist.create({
+                const newWishlist = await WhishList.create({
                     user_id: user?._id,
                     products: productIds || [productId],
                 });
@@ -74,7 +79,6 @@ const whishListController = {
         }
     },
 
-
     removeToWhishList: async (req: Request, res: Response) => {
         try {
             console.log("Remove from Wishlist API");
@@ -86,7 +90,7 @@ const whishListController = {
             }
 
             const user = await User.findOne({ userId: user_id })
-            const wishlist = await Wishlist.findOne({ user_id: user?._id });
+            const wishlist = await WhishList.findOne({ user_id: user?._id });
 
             if (!wishlist) {
                 return sendSuccessResponse(res, { products: [] }, "No wishlist found", 200);

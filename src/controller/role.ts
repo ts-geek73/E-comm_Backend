@@ -102,8 +102,8 @@ const RoleController = {
 
       if (!updatedRole) {
         return sendErrorResponse(res, {
-          message: "Not Found",
-          details: "Role not found",
+          details: "Not Found",
+          message: "Role not found",
         }, 404);
       }
 

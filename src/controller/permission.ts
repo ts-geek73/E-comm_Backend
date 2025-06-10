@@ -28,8 +28,8 @@ const PermissionController = {
 
       if (existingPermission) {
         return sendErrorResponse(res, {
-          message: "Conflict",
-          details: "Permission with this name or key already exists",
+          details: "Conflict",
+          message: "Permission with this name or key already exists",
         }, 400);
       }
 
@@ -163,7 +163,7 @@ const PermissionController = {
       const permission = await Permission.findById(id);
       if (!permission) {
         return sendErrorResponse(res, {
-          message: "Not Found",
+          message: "Permission not found",
           details: "Permission not found",
         }, 404);
       }

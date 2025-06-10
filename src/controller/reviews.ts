@@ -2,14 +2,14 @@ import { Request, Response } from 'express';
 import path from 'path';
 import { findOrCreateImage, getAbsoluteImageUrl, removeImageFile } from '../functions/image';
 import { Product, Review, ReviewImages, User } from '../models';
-import { IImage, IRequestHandler as IProductRequestHandler, IReviewImages } from '../types';
+import { IImage, IRequestHandler as IProductRequestHandler, IProductReview, IReviewImages } from '../types';
 
 const ReviewsController: IProductRequestHandler = {
    createProductReview: async (req: Request, res: Response): Promise<void> => {
       try {
          console.log("Create Product Review API");
 
-         const { id, user_id } = req.params;
+         const { id, userId } = req.params;
          const { rate, description } = req.body;
          console.log(req.body);
 
@@ -21,7 +21,7 @@ const ReviewsController: IProductRequestHandler = {
             return;
          }
 
-         if (!user_id) {
+         if (!userId) {
             res.status(400).json({ message: 'User ID is missing' });
             return;
          }
@@ -42,14 +42,14 @@ const ReviewsController: IProductRequestHandler = {
             return;
          }
 
-         const userExist = await User.findOne({ userId: user_id });
+         const userExist = await User.findOne({ userId: userId });
          if (!userExist) {
             res.status(404).json({ message: 'User does not exist' });
             return;
          }
 
          const newReview = new Review({
-            user_id,
+            userId,
             product_id: id,
             rate,
             description,
@@ -61,7 +61,7 @@ const ReviewsController: IProductRequestHandler = {
          const imageIds = await Promise.all(
             uploadedFiles.map(async (file, index) => {
                const imageUrl = `/uploads/procudts/${file.filename}`;
-               const imageName = `product_${id}_user_${user_id}_${index + 1}`;
+               const imageName = `product_${id}_user_${userId}_${index + 1}`;
                return await findOrCreateImage(imageUrl, imageName);
             })
          );
@@ -69,7 +69,7 @@ const ReviewsController: IProductRequestHandler = {
          // Save reference to ReviewImages
          const reviewImage = new ReviewImages({
             product_id: id,
-            user_id,
+            userId: userId,
             review_images: imageIds,
          });
 
@@ -88,21 +88,21 @@ const ReviewsController: IProductRequestHandler = {
       try {
         console.log("Product Review Call with Product Id ", req.params.id);
     
-        const { id, user_id } = req.params;
+        const { id, userId } = req.params;
     
         if (!id) {
           res.status(400).json({ message: 'Product ID is missing' });
           return;
         }
     
-        let userReviews: any[] = [];
-        let otherReviews: any[] = [];
+        let userReviews: IProductReview[] = [];
+        let otherReviews: IProductReview[] = [];
     
-        if (user_id) {
-          userReviews = await Review.find({ product_id: id, user_id });
-          otherReviews = await Review.find({ product_id: id, user_id: { $ne: user_id } });
+        if (userId) {
+          userReviews = await Review.find({ product_id: id, userId }).lean();
+          otherReviews = await Review.find({ product_id: id, userId: { $ne: userId } }).lean();
         } else {
-          // No user_id provided, get all reviews
+          // No userId provided, get all reviews
           userReviews = await Review.find({ product_id: id });
         }
     
@@ -135,12 +135,12 @@ const ReviewsController: IProductRequestHandler = {
         };
     
         // Process a review list with images and user email
-        const processReviews = async (reviews: any[]) => {
+        const processReviews = async (reviews: IProductReview[]) => {
           return await Promise.all(
-            reviews.map(async (review: any) => {
+            reviews.map(async (review: IProductReview) => {
               const email = await getUserInfo(review.user_id.toString());
               return {
-                ...review.toObject(),
+                ...review,
                 email,
                 images: getReviewImages(review.user_id.toString()),
               };
@@ -155,7 +155,7 @@ const ReviewsController: IProductRequestHandler = {
     
         res.status(200).json({
           reviews: processedUserReviews,
-          otherReviews: user_id ? processedOtherReviews : [],
+          otherReviews: userId ? processedOtherReviews : [],
         });
     
       } catch (error: any) {
@@ -169,17 +169,17 @@ const ReviewsController: IProductRequestHandler = {
       try {
          console.log("Update Review Call");
 
-         const { id, user_id } = req.params;
+         const { id, userId } = req.params;
          const { rate, description } = req.body;
 
-         console.log("Body", req.body, id, user_id);
+         console.log("Body", req.body, id, userId);
 
-         if (!id || !user_id) {
+         if (!id || !userId) {
             res.status(400).json({ message: 'Product ID or User ID is missing' });
             return;
          }
 
-         const review = await Review.findOne({ product_id: id, user_id });
+         const review = await Review.findOne({ product_id: id, userId });
 
          if (!review) {
             res.status(404).json({ message: 'Review not found for this product and user' });
@@ -194,19 +194,19 @@ const ReviewsController: IProductRequestHandler = {
          const uploadedFiles = req.files as Express.Multer.File[];
 
          if (uploadedFiles && uploadedFiles.length > 0) {
-            const existingReviewImages = await ReviewImages.findOne({ product_id: id, user_id })
+            const existingReviewImages = await ReviewImages.findOne({ product_id: id, userId })
                .populate('review_images');
 
             const imageIds = await Promise.all(
                uploadedFiles.map(async (file, index) => {
                   const imageUrl = `/uploads/products/${file.filename}`;
-                  const imageName = `product_${id}_user_${user_id}_${index + 1}`;
+                  const imageName = `product_${id}_user_${userId}_${index + 1}`;
                   return await findOrCreateImage(imageUrl, imageName);
                })
             );
 
             // Update review images
-            let reviewImage = await ReviewImages.findOne({ product_id: id, user_id });
+            let reviewImage = await ReviewImages.findOne({ product_id: id, userId });
             if (reviewImage) {
                // Optionally remove old image files if needed
                if (existingReviewImages && existingReviewImages.review_images) {
@@ -225,7 +225,7 @@ const ReviewsController: IProductRequestHandler = {
                // Create new review images if not found
                reviewImage = new ReviewImages({
                   product_id: id,
-                  user_id,
+                  userId,
                   review_images: imageIds,
                });
                await reviewImage.save();
@@ -247,21 +247,21 @@ const ReviewsController: IProductRequestHandler = {
 
    deleteProductReview: async (req: Request, res: Response): Promise<void> => {
       try {
-         const { id, user_id } = req.params;
+         const { id, userId } = req.params;
 
-         if (!id || !user_id) {
+         if (!id || !userId) {
             res.status(400).json({ message: 'Product ID or User ID is missing' });
             return;
          }
 
-         const review = await Review.findOneAndDelete({ product_id: id, user_id });
+         const review = await Review.findOneAndDelete({ product_id: id, userId });
 
          if (!review) {
             res.status(404).json({ message: 'Review not found for this product and user' });
             return;
          }
 
-         const reviewImages = await ReviewImages.findOne({ product_id: id, user_id })
+         const reviewImages = await ReviewImages.findOne({ product_id: id, userId })
             .populate('review_images');
 
          if (reviewImages) {

@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { userIdValidate } from '../middleware/productValidation';
 import { CartController } from '../controller';
+import { userIdAndPermissionValidate } from '../middleware/productValidation';
 
 const router = Router()
 router.get("/" , CartController.getCart )
 
-router.put("/" , userIdValidate , CartController.updateCart )
+router.put("/" , userIdAndPermissionValidate() , CartController.updateCart )
 
-router.delete("/item" , userIdValidate , CartController.removeItemfromCart )
-router.delete("/" , userIdValidate , CartController.clearCart )
+router.delete("/item" , userIdAndPermissionValidate() , CartController.removeItemfromCart )
+router.delete("/" , userIdAndPermissionValidate() , CartController.clearCart )
 
 export default router
