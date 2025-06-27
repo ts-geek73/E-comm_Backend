@@ -80,18 +80,18 @@ const CartController: IRequestHandler = {
 
       let cart = await ShoppingCart.findOne({ user_id }) as IShoppingCart
 
+      console.log("🚀 ~ updateCart: ~ cart:", cart)
       if (!cart) {
-        // Cart doesn't exist: create new cart
         cart = new ShoppingCart({ user_id, products: incomingProducts });
       } else {
-        // Cart exists: update or insert products
         incomingProducts.forEach((incomingProduct) => {
+          console.log("🚀 ~ incomingProducts.forEach ~ incomingProduct:", incomingProduct)
           const existingProduct = cart.products.find((p) =>
             p.product_id.toString() === incomingProduct.product_id
           );
+          console.log("🚀 ~ incomingProducts.forEach ~ existingProduct:", existingProduct)
 
           if (existingProduct) {
-            // Update quantity
             existingProduct.qty = incomingProduct.qty;
             existingProduct.notes = incomingProduct.notes || existingProduct.notes;
           } else {
@@ -117,7 +117,6 @@ const CartController: IRequestHandler = {
       );
     }
   },
-
 
   removeItemfromCart: async (req: Request, res: Response) => {
     try {

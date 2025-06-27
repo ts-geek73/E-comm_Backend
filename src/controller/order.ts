@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getProductDetails, sendErrorResponse, sendSuccessResponse } from '../functions/product';
-import { Order, UserInvoice } from '../models';
+import { Order, User, UserInvoice } from '../models';
 import stripe from '../service/stripe';
 
 const OrderController = {
@@ -129,15 +129,15 @@ const OrderController = {
         const sortDirection = sortOrder === 'asc' ? 1 : -1;
         if (sortField === "totalAmount") {
           sortObj["amount"] = sortDirection
-        } else if(sortField === "orderNumber"){
+        } else if (sortField === "orderNumber") {
           sortObj["_id"] = sortDirection
-        } 
+        }
         else {
           sortObj[sortField as string] = sortDirection;
         }
 
-        console.log('Query Filter:', queryFilter);
-        console.log('Sort Object:', sortObj);
+        // console.log('Query Filter:', queryFilter);
+        // console.log('Sort Object:', sortObj);
 
         const totalCount = await Order.countDocuments(queryFilter);
 
@@ -155,7 +155,7 @@ const OrderController = {
           .limit(limitNum)
           .lean();
 
-        console.log(orders);
+        // console.log(orders);
 
 
         if (!orders || orders.length === 0) {
@@ -187,7 +187,7 @@ const OrderController = {
         );
 
         const totalPages = Math.ceil(totalCount / limitNum);
-        console.log(updatedOrders.length);
+        // console.log(updatedOrders.length);
 
 
         sendSuccessResponse(res, {
@@ -264,11 +264,11 @@ const OrderController = {
         const sortField = validSortFields.includes(sortBy as string) ? sortBy : 'createdAt';
         const sortDirection = sortOrder === 'asc' ? 1 : -1;
 
-        console.log(sortBy, sortField, sortDirection);
+        // console.log(sortBy, sortField, sortDirection);
 
 
         filteredInvoices.sort((a: any, b: any) => {
-          console.log("a: ", a, " b:", b);
+          // console.log("a: ", a, " b:", b);
 
           // let aValue = a[sortField as string];
           // let bValue = b[sortField as string];
@@ -387,57 +387,62 @@ const OrderController = {
       sendErrorResponse(res, { message: 'Server error' }, 500);
     }
   },
-  // syncStripeInvoices: async (): Promise<{ success: boolean; message: string; error?: string }> => {
-  //     try {
-  //         // const charges = await stripe.charges.list({ limit: 100 });
-  //         // console.log(charges);
-  //         // console.log(charges.url);
+  cancelOrReturnOrderFunction: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { order, user_id, userEmail, status } = req.body;
 
-  //         const orders = await Order.find({ status :{ $eq: "complete"}})
+      if (!order || !order._id) {
+        sendErrorResponse(res, { message: 'Order data missing or invalid' }, 400);
+        return;
+      }
 
-  //         for (const order of orders) {
+      const user = await User.findOne({ userId:user_id });
+      if (!user) {
+        sendErrorResponse(res, { message: 'User not found' }, 404);
+        return;
+      }
 
-  //             const session: Stripe.Checkout.Session = await stripe.checkout.sessions.retrieve(order.session_id);
-  //             const chargesList = await stripe.charges.list({
-  //                 payment_intent: session.payment_intent as string,
-  //                 limit: 1,
-  //             });
+      if (user.email !== userEmail) {
+        sendErrorResponse(res, { message: 'Email mismatch. Unauthorized request.' }, 403);
+        return;
+      }
 
-  //             const receiptUrl = chargesList.data[0]?.receipt_url as string;
+      const existingOrder = await Order.findById(order._id);
+      if (!existingOrder) {
+        sendErrorResponse(res, { message: 'Order not found' }, 404);
+        return;
+      }
 
+      if (status === "cancel") {
+        existingOrder.status = 'cancelled';
+        await existingOrder.save();
+        res.json({ success: true, message: 'Order cancelled successfully' });
+        return;
 
-  //             const invoiceEntry = {
-  //                 orderId: order._id as Types.ObjectId,
-  //                 invoice: receiptUrl,
-  //             };
+      }
+      else if (status === "return") {
+        const orderDate = existingOrder.get('createdAt');
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  //             let userInvoiceDoc = await UserInvoice.findOne({ email: order.email });
+        if (orderDate < sevenDaysAgo) {
+          sendErrorResponse(res, { message: 'Order return period (7 days) has expired.' }, 400);
+          return;
+        }
 
-  //             if (!userInvoiceDoc) {
-  //                 userInvoiceDoc = new UserInvoice({
-  //                     email: order.email,
-  //                     invoices: [invoiceEntry],
-  //                 });
-  //             } else {
-  //                 const alreadyExists = userInvoiceDoc.invoices.some(
-  //                     (inv) => inv.invoice === receiptUrl
-  //                 );
-  //                 if (!alreadyExists) {
-  //                     userInvoiceDoc.invoices.push(invoiceEntry);
-  //                 }
-  //             }
+        existingOrder.status = 'return';
+        await existingOrder.save();
+        res.json({ success: true, message: 'Order returned successfully' });
+        return;
+      }
 
-  //             await userInvoiceDoc.save();
-  //         }
+      sendErrorResponse(res, { message: 'Invalid route' }, 400);
+    } catch (error) {
+      console.error('Error in order dataFunction:', error);
+      sendErrorResponse(res, { message: 'Server error' }, 500);
 
-  //         console.log('✅ Invoice sync complete.');
-  //         return { success: true, message: 'Invoice sync complete.' };
-  //     } catch (error: any) {
-  //         console.error('❌ Error syncing invoices:', error);
-  //         return { success: false, message: 'Error syncing invoices', error: error.message };
-  //     }
-  // }
-
+    }
+  }
 };
 
 export default OrderController;

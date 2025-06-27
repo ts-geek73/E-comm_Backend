@@ -4,7 +4,6 @@ import multer from 'multer';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Use process.cwd() instead of __dirname
     const uploadDir = path.join(process.cwd(), 'public/uploads/products');
     console.log('Multer upload dir:', uploadDir); // Debug log
     

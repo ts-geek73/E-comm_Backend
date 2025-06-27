@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
+import path from 'path';
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
+import fs from "fs";
+import { getAbsoluteImageUrl, removeImageFile } from '../functions/image';
 import {
   findOrCreateImage,
   handleProductBrands,
@@ -10,14 +15,12 @@ import {
   validateNumericFields,
   validateRequiredFields
 } from '../functions/product';
-import { Brand, Category, Image, Product, ProductBrand, ProductCategory, ProductImage } from "../models";
+import { Brand, Category, Image, Order, Product, ProductBrand, ProductCategory, ProductImage } from "../models";
 import {
   IProduct,
   IProductQueryParams,
   IRequestHandler
 } from '../types';
-import { getAbsoluteImageUrl, removeImageFile } from '../functions/image';
-import path from 'path';
 
 const productController: IRequestHandler = {
   createProduct: async (req: Request, res: Response): Promise<void> => {
@@ -46,7 +49,7 @@ const productController: IRequestHandler = {
 
       const requiredFields = ['name', 'status', 'short_description', 'long_description', 'price', 'categories', 'imageUrls'];
       const missingField = validateRequiredFields(req.body, requiredFields);
-      if (missingField) return sendErrorResponse(res, missingField,400);
+      if (missingField) return sendErrorResponse(res, missingField, 400);
 
       const priceValue = parseFloat(price);
       const ratingValue = parseFloat(rating);
@@ -107,6 +110,48 @@ const productController: IRequestHandler = {
       sendSuccessResponse(res, { brands, categories });
     } catch (error: any) {
       console.error('Error fetching brands and categories:', error);
+      sendErrorResponse(res, {
+        message: 'Failed to fetch brands and categories',
+        details: error.message
+      }, 500);
+    }
+  },
+
+  importViaFile: async (req: Request, res: Response): Promise<void> => {
+    try {
+      console.log("importViaFile API");
+
+      const file = req.file;
+
+      if (!file) {
+        res.status(400).json({ error: "No file uploaded." });
+        return;
+      }
+
+      const fileExtension = file.originalname.split(".").pop()?.toLowerCase();
+
+      if (fileExtension === "csv") {
+        const fileContent = fs.readFileSync(file.path, "utf8");
+        Papa.parse(fileContent, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (result) => {
+            fs.unlinkSync(file.path);
+            res.json({ data: result.data });
+            return 
+          },
+        });
+      } else if (fileExtension === "xlsx" || fileExtension === "xls") {
+        const workbook = XLSX.readFile(file.path);
+        const worksheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[worksheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        fs.unlinkSync(file.path); 
+        res.json({ data: jsonData });
+        return 
+      }
+        } catch (error: any) {
+      console.error('Error Import the file fron the csv:', error);
       sendErrorResponse(res, {
         message: 'Failed to fetch brands and categories',
         details: error.message
@@ -185,14 +230,23 @@ const productController: IRequestHandler = {
 
       const productIds = products.map(p => p._id);
 
-      const [brandRelations, categoryRelations, imageRelations] = await Promise.all([
+      const [brandRelations, categoryRelations, imageRelations, ordersRelation] = await Promise.all([
         ProductBrand.find({ productId: { $in: productIds } }).populate('brands', 'name'),
         ProductCategory.find({ productId: { $in: productIds } }).populate('categories', 'name'),
         ProductImage.find({ productId: { $in: productIds } }).populate('imageUrl', 'url name'),
+
+        Order.aggregate([
+          { $match: { status: "complete", "items.product_id": { $in: productIds } } },
+          { $unwind: "$items" },
+          { $match: { "items.product_id": { $in: productIds } } },
+          {
+            $group: {
+              _id: "$items.product_id",
+              totalQty: { $sum: "$items.qty" }
+            }
+          }
+        ])
       ]);
-
-      console.log("Pass 1");
-
 
 
       const normalizeImage = (img: any) => ({
@@ -216,6 +270,14 @@ const productController: IRequestHandler = {
             : [],
         };
       });
+
+      const totalQtyMap = new Map(ordersRelation.map(o => [o._id.toString(), o.totalQty]));
+
+      const orderSummary = productIds.map(productId => ({
+        productId,
+        totalQty: totalQtyMap.get(productId.toString()) || 0
+      }));
+
 
 
       console.log("Pass 2", productsWithDetails.length);
@@ -258,8 +320,11 @@ const productController: IRequestHandler = {
           related: relatedFullProducts,
         });
       } else {
+
+
         sendSuccessResponse(res, {
           data: productsWithDetails,
+          order: orderSummary,
           length: totalCount,
         });
       }
@@ -336,16 +401,16 @@ const productController: IRequestHandler = {
           : []
       };
 
-      const categoryIds: Types.ObjectId[] = productCategories?.categories || [];
+      const categoryIds: Types.ObjectId[] = productCategories?.categories || (await Category.find().limit(3)).map((cat) => cat._id) as Types.ObjectId[];
       let relatedProducts: any[] = [];
 
       if (categoryIds.length > 0) {
         const relatedProductCategories = await ProductCategory.find({
           productId: { $ne: product._id },
-          categories: { $in: categoryIds }
-        }).limit(3);
+        }).limit(5);
 
         const relatedProductIds = relatedProductCategories.map((pc: any) => pc.productId);
+        console.log("🚀 ~ getProductById: ~ relatedProductIds:", relatedProductIds.length)
 
         if (relatedProductIds.length > 0) {
           const relatedProductsData = await Product.find({

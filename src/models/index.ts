@@ -19,3 +19,4 @@ export { default as PromoCode } from "./promocode";
 export { default as Order } from "./Order";
 export { default as UserInvoice } from "./user-invoice";
 export { default as OTP } from "./otp";
+export { default as StockEntry } from "./productStock";

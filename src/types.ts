@@ -126,6 +126,17 @@ export interface UserData {
   provider: string;
 }
 
+export interface IStockEntry extends Document {
+  stock_name: string;
+  description?: string;
+  products: {
+    product_id: Types.ObjectId;
+    quantity: number;
+  }[];
+  added_by: string; // user email
+  createdAt: Date;
+}
+
 export interface IPermission extends Document {
   name: string;
   key: string;
@@ -192,7 +203,7 @@ export interface IOrder extends Document {
   shipping_address: Types.ObjectId;
   session_id: string 
   billing_address: Types.ObjectId;
-  status: 'pending' | 'paid' | 'failed' | 'shipped' | 'complete' | 'cancelled';
+  status: 'pending' | 'paid' |'return'| 'failed' | 'shipped' | 'complete' | 'cancelled';
 }
 
 export interface IUserInvoice extends Document {

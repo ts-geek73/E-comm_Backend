@@ -45,8 +45,8 @@ app.use(
 
 app.use('/payment/webhook',
   express.raw({ type: 'application/json' }),
-  bodyParser.raw({ type: "*/*" }),
-  bodyParser.json(),
+  // bodyParser.raw({ type: "*/*" }),
+  // bodyParser.json(),
   stripeController.webhookCall
 );
 
@@ -85,10 +85,10 @@ const connectDB = async () => {
 
     app.use('/', routes);
 
-    // app.listen(port, () => {
-    //   startCronJobs();
-    //   console.log(`App running on port ${port}`);
-    // });
+    app.listen(5001, () => {
+      startCronJobs();
+      console.log(`App running on port 5001`);
+    });
 
     https.createServer(options, app).listen(5000, () => {
       startCronJobs()

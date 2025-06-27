@@ -5,40 +5,6 @@ import { UserData } from '../types';
 
 dotenv.config();
 
-
-// import jwt, { JwtPayload } from 'jsonwebtoken';
-// import jwksClient from 'jwks-rsa';
-
-// const JWKS_URI = process.env.JWKS_URI || '';
-// const JWT_ISSUER = process.env.JWT_ISSUER || '';
-
-// const client = jwksClient({
-//   jwksUri: JWKS_URI,
-// });
-
-// let cachedPublicKeys: { [key: string]: string } = {};
-
-// async function getLocalKey(header: any): Promise<string | null> {
-//   const kid = header.kid;
-
-//   if (cachedPublicKeys[kid]) {
-//     return cachedPublicKeys[kid];
-//   }
-
-//   try {
-//     const key = await client.getSigningKey(kid);
-//     const publicKey = key?.getPublicKey();
-//     if (publicKey) {
-//       cachedPublicKeys[kid] = publicKey; 
-//       return publicKey;
-//     }
-//     return null;
-//   } catch (error) {
-//     console.error('Error fetching signing key:', error);
-//     return null;
-//   }
-// }
-
 const UserController = {
 
   createUser: async (req: Request, res: Response) => {

@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import stripe from '../service/stripe';
 import { IOrder, IRequestHandler } from '../types';
 import Stripe from 'stripe';
-import { Order, PromoCode, ShoppingCart } from '../models';
+import { Order, PromoCode, ShoppingCart, UserInvoice } from '../models';
+import { Types } from 'mongoose';
 const endpointSecret = process.env.STRIPE_WEBHOOK_KEY;
 
 const stripeController: IRequestHandler = {
@@ -132,15 +133,13 @@ const stripeController: IRequestHandler = {
                     if (!metadata) {
                         console.warn("No metadata in session");
                         res.status(400).send("Missing metadata");
-                        return
+                        return;
                     }
 
                     const discounts = session.discounts || [];
 
                     for (const discount of discounts) {
-                        // discount.coupon can be string or Coupon
                         if (typeof discount.coupon !== "string") {
-                            // Now you can safely access .name and .id
                             if (discount.coupon && discount.coupon.name === "Discount") {
                                 try {
                                     await stripe.coupons.del(discount.coupon.id);
@@ -155,27 +154,57 @@ const stripeController: IRequestHandler = {
                     const { billing, shipping, coupons, cartId, orderId } = metadata;
                     const order = await Order.findById(orderId);
 
-
                     const billingParsed = typeof billing === 'string' ? JSON.parse(billing) : billing;
                     const shippingParsed = typeof shipping === 'string' ? JSON.parse(shipping) : shipping;
-                    // const couponParse = coupons.split(",")
 
-                    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-                        limit: 100,
-                    });
+                    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
 
                     if (lineItems && billingParsed._id && shippingParsed._id && order) {
                         order.status = 'complete';
                         order.amount = session.amount_total ? session.amount_total / 100 : 0;
                         await order.save();
 
-                        await ShoppingCart.findByIdAndDelete(cartId)
+                        await ShoppingCart.findByIdAndDelete(cartId);
+                    }
 
+                    try {
+                        const invoices = await stripe.invoices.list({
+                            customer: session.customer as string,
+                            limit: 5,
+                        });
 
+                        for (const invoice of invoices.data) {
+                            // if (invoice.subscription || invoice.payment_intent !== session.payment_intent) continue;
+
+                            // Generate invoice PDF link (optional, or store invoice id/text)
+                            const invoicePDF = invoice.invoice_pdf;
+
+                            if (invoicePDF) {
+                                let userInvoice = await UserInvoice.findOne({ email: customerEmail });
+
+                                if (!userInvoice) {
+                                    userInvoice = new UserInvoice({
+                                        email: customerEmail,
+                                        invoices: [],
+                                    });
+                                }
+
+                                userInvoice.invoices.push({
+                                    orderId: order?._id as Types.ObjectId,
+                                    invoice: invoicePDF, 
+                                });
+
+                                await userInvoice.save();
+                                console.log("Invoice stored for user:", customerEmail);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Failed to store invoice:", err);
                     }
 
                     break;
                 }
+
                 case "checkout.session.expired": {
                     const data = event.data.object
                     console.log("Webhook Trigger:=", event.type,);
@@ -255,7 +284,6 @@ const stripeController: IRequestHandler = {
             res.status(400).send(`Webhook Error: ${err.message}`);
         }
     }
-
 }
 
-export default stripeController;
+export default stripeController

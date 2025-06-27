@@ -1,17 +1,10 @@
 import express from 'express';
 import { OrderController } from '../controller';
+import { userIdAndPermissionValidate } from '../middleware/productValidation';
 
 const router = express.Router();
 
 router.get('/invoice', OrderController.getOrderAndInvoiceFunction);
-
-// router.post('/invoice/sync',  async (req, res) => {
-//   const result = await OrderController.syncStripeInvoices();
-//   if (result.success) {
-//     res.status(200).json({ message: result.message });
-//   } else {
-//     res.status(500).json({ message: result.message, error: result.error });
-//   }
-// });
+router.put('/cancel-return', userIdAndPermissionValidate() ,OrderController.cancelOrReturnOrderFunction);
 
 export default router;

@@ -19,6 +19,12 @@ router.post(
   productController.createProduct
 );
 
+router.post(
+  '/file', 
+  upload.single('file'),
+  productController.importViaFile
+);
+
 // PUT requests
 router.put(
   '/update/:id', 
